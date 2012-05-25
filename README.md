@@ -10,6 +10,7 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 
 #### Push your app
 
+	$ cd myapp
 	$ heroku push
 	Generating application manifest... done
 	Computing diff for upload... done
