@@ -53,7 +53,7 @@ class Heroku::Command::Push < Heroku::Command::Base
 
   PUSH_THREAD_COUNT = 40
 
-  # push
+  # push [DIR]
   #
   # deploy code
   #
@@ -62,8 +62,9 @@ class Heroku::Command::Push < Heroku::Command::Base
   # -r, --release        # release the slug to an app
   #
   def index
+    dir = shift_argument || "."
     manifest = action("Generating application manifest") do
-      directory_manifest(".")
+      directory_manifest(dir)
     end
     missing_hashes = action("Computing diff for upload") do
       missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(manifest)).to_s)

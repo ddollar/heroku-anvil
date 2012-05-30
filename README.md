@@ -47,10 +47,10 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 
 ## Advanced Usage
 
-	Usage: heroku push
-	
+	Usage: heroku push [DIR]
+
 	 deploy code
-	
+
 	 -b, --buildpack URL  # use a custom buildpack
 	 -e, --runtime-env    # use runtime environment during build
 	 -r, --release        # release the slug to an app
