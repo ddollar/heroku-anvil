@@ -3,6 +3,7 @@ require "digest/sha2"
 require "heroku/command/base"
 require "net/https"
 require "pathname"
+require "tmpdir"
 
 # deploy code
 #
@@ -14,19 +15,22 @@ class Heroku::Command::Push < Heroku::Command::Base
   #
   # deploy code
   #
+  # -r, --release APP  # release the slug to an app
   #
   def index
     manifest = action("Generating application manifest") do
       directory_manifest(".")
     end
     missing_hashes = action("Computing diff for upload") do
-      json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(manifest)).to_s)
+      missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(manifest)).to_s)
+      @status = "#{missing.length} files needed"
+      missing
     end
+    @status = nil
     action("Uploading new files") do
       upload_missing_files(manifest, missing_hashes)
     end
 
-    puts "Compiling..."
     uri = URI.parse("#{anvil_host}/manifest/build")
 
     http = Net::HTTP.new(uri.host, uri.port)
@@ -39,9 +43,38 @@ class Heroku::Command::Push < Heroku::Command::Base
     req = Net::HTTP::Post.new uri.request_uri
     req.set_form_data "manifest" => json_encode(manifest)
 
+    slug_url = nil
+
     http.request(req) do |res|
+      slug_url = res["x-slug-url"]
       res.read_body do |chunk|
         print chunk
+      end
+    end
+
+    if release_app = options[:release]
+      Dir.mktmpdir do |dir|
+        action("Downloading slug") do
+          File.open("#{dir}/slug.img", "wb") do |file|
+            file.print RestClient.get(slug_url).body
+          end
+        end
+        release = heroku.releases_new(release_app)
+        action("Uploading slug for release") do
+          res = RestClient.put(release["slug_put_url"], File.open("#{dir}/slug.img", "rb"), :content_type => nil)
+        end
+        action("Releasing") do
+          payload = release.merge({
+            "slug_version" => 2,
+            "run_deploy_hooks" => true,
+            "user" => heroku.user,
+            "release_descr" => "Anvil deploy",
+            "head" => Digest::SHA1.hexdigest(Time.now.to_f.to_s),
+            "process_types" => parse_procfile("Procfile")
+          }) { |k, v1, v2| v1 || v2 }
+          release = heroku.releases_create(release_app, payload)
+          @status = release["release"]
+        end
       end
     end
   end
@@ -86,11 +119,13 @@ private
     end
   end
 
-  def streamer
-    lambda do |chunk, remaining, total|
-      p [:chunk, chunk]
-      p [:rem, remaining]
-      p [:tot, total]
+  def parse_procfile(filename)
+    return {} unless File.exists?(filename)
+    File.read(filename).split("\n").inject({}) do |ax, line|
+      if line =~ /^([A-Za-z0-9_]+):\s*(.+)$/
+        ax[$1] = $2
+      end
+      ax
     end
   end
 
