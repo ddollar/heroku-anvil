@@ -5,9 +5,51 @@ require "net/https"
 require "pathname"
 require "tmpdir"
 
+module Heroku::Releaser
+
+  def release_slug(slug_url, app)
+    Dir.mktmpdir do |dir|
+      action("Downloading slug") do
+        File.open("#{dir}/slug.img", "wb") do |file|
+          file.print RestClient.get(slug_url).body
+        end
+      end
+      release = heroku.releases_new(app)
+      action("Uploading slug for release") do
+        res = RestClient.put(release["slug_put_url"], File.open("#{dir}/slug.img", "rb"), :content_type => nil)
+      end
+      action("Releasing") do
+        payload = release.merge({
+          "slug_version" => 2,
+          "run_deploy_hooks" => true,
+          "user" => heroku.user,
+          "release_descr" => "Anvil deploy",
+          "head" => Digest::SHA1.hexdigest(Time.now.to_f.to_s),
+          "process_types" => parse_procfile("Procfile")
+        }) { |k, v1, v2| v1 || v2 }
+        release = heroku.releases_create(app, payload)
+        @status = release["release"]
+      end
+    end
+  end
+
+  def parse_procfile(filename)
+    return {} unless File.exists?(filename)
+    File.read(filename).split("\n").inject({}) do |ax, line|
+      if line =~ /^([A-Za-z0-9_]+):\s*(.+)$/
+        ax[$1] = $2
+      end
+      ax
+    end
+  end
+
+end
+
 # deploy code
 #
 class Heroku::Command::Push < Heroku::Command::Base
+
+  include Heroku::Releaser
 
   PUSH_THREAD_COUNT = 40
 
@@ -15,7 +57,7 @@ class Heroku::Command::Push < Heroku::Command::Base
   #
   # deploy code
   #
-  # -r, --release APP  # release the slug to an app
+  # -r, --release  # release the slug to an app
   #
   def index
     manifest = action("Generating application manifest") do
@@ -52,32 +94,11 @@ class Heroku::Command::Push < Heroku::Command::Base
       end
     end
 
-    if release_app = options[:release]
-      Dir.mktmpdir do |dir|
-        action("Downloading slug") do
-          File.open("#{dir}/slug.img", "wb") do |file|
-            file.print RestClient.get(slug_url).body
-          end
-        end
-        release = heroku.releases_new(release_app)
-        action("Uploading slug for release") do
-          res = RestClient.put(release["slug_put_url"], File.open("#{dir}/slug.img", "rb"), :content_type => nil)
-        end
-        action("Releasing") do
-          payload = release.merge({
-            "slug_version" => 2,
-            "run_deploy_hooks" => true,
-            "user" => heroku.user,
-            "release_descr" => "Anvil deploy",
-            "head" => Digest::SHA1.hexdigest(Time.now.to_f.to_s),
-            "process_types" => parse_procfile("Procfile")
-          }) { |k, v1, v2| v1 || v2 }
-          release = heroku.releases_create(release_app, payload)
-          @status = release["release"]
-        end
-      end
+    if options[:release]
+      release_slug slug_url, app
     end
   end
+
 
 private
 
@@ -149,6 +170,23 @@ private
       end
     end
     threads.each(&:join)
+  end
+
+end
+
+# release code
+#
+class Heroku::Command::Release < Heroku::Command::Base
+
+  include Heroku::Releaser
+
+  # release SLUG_URL
+  #
+  # release a slug
+  #
+  def index
+    error("Usage: heroku release SLUG_URL") unless slug_url = shift_argument
+    release_slug(slug_url, app)
   end
 
 end
