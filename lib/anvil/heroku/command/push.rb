@@ -18,7 +18,7 @@ module Heroku::Releaser
       action("Uploading slug for release") do
         res = RestClient.put(release["slug_put_url"], File.open("#{dir}/slug.img", "rb"), :content_type => nil)
       end
-      action("Releasing") do
+      action("Releasing to #{app}") do
         payload = release.merge({
           "slug_version" => 2,
           "run_deploy_hooks" => true,

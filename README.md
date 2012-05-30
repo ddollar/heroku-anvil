@@ -8,10 +8,10 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 
 ## Usage
 
-#### Push your app
+#### Create a slug
 
-	$ cd myapp
-	$ heroku push
+	# create a
+	$ cd myapp; heroku push
 	Generating application manifest... done
 	Computing diff for upload... done
 	Uploading new files... done
@@ -19,8 +19,28 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 	Launching build slave
 	Buildpack: Buildkit+Node.js
 	-----> Compiling for Node.js
-	-----> Resolving engine versions
-	       Using Node.js version: 0.6.12
-	       Using npm version: 1.1.4
-	-----> Fetching Node.js binaries
-    ...
+	...
+	Success, slug is https://anvil.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
+
+#### Create a slug and release it
+
+	$ heroku push -r
+	Generating application manifest... done
+	Computing diff for upload... done
+	Uploading new files... done
+	Compiling...
+	Launching build slave
+	Buildpack: Buildkit+Node.js
+	-----> Compiling for Node.js
+	...
+	Success, slug is https://anvil.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
+	Downloading slug... done
+	Uploading slug for release... done
+	Releasing to myapp... done, v30
+
+#### Release an existing slug
+
+	$ heroku release https://anvil.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
+	Downloading slug... done
+	Uploading slug for release... done
+	Releasing to myapp... done, v30
