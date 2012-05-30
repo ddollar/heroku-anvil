@@ -57,7 +57,9 @@ class Heroku::Command::Push < Heroku::Command::Base
   #
   # deploy code
   #
-  # -r, --release  # release the slug to an app
+  # -b, --buildpack URL  # use a custom buildpack
+  # -e, --runtime-env    # use runtime environment during build
+  # -r, --release        # release the slug to an app
   #
   def index
     manifest = action("Generating application manifest") do
@@ -83,7 +85,14 @@ class Heroku::Command::Push < Heroku::Command::Base
     end
 
     req = Net::HTTP::Post.new uri.request_uri
-    req.set_form_data "manifest" => json_encode(manifest)
+
+    env = options[:runtime_env] ? heroku.config_vars(app) : {}
+
+    req.set_form_data({
+      "env"       => env,
+      "manifest"  => json_encode(manifest),
+      "buildpack" => options[:buildpack]
+    })
 
     slug_url = nil
 

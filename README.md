@@ -44,3 +44,13 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 	Downloading slug... done
 	Uploading slug for release... done
 	Releasing to myapp... done, v31
+
+## Advanced Usage
+
+	Usage: heroku push
+	
+	 deploy code
+	
+	 -b, --buildpack URL  # use a custom buildpack
+	 -e, --runtime-env    # use runtime environment during build
+	 -r, --release        # release the slug to an app
