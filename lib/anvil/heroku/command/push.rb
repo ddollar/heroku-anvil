@@ -63,18 +63,18 @@ class Heroku::Command::Push < Heroku::Command::Base
   #
   def index
     dir = shift_argument || "."
-    manifest = action("Generating application manifest") do
     validate_arguments!
+    manifest = action("Generating app manifest") do
       directory_manifest(dir)
     end
-    missing_hashes = action("Computing diff for upload") do
+    missing_hashes = action("Computing diff for app upload") do
       missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(manifest)).to_s)
       @status = "#{missing.length} files needed"
       missing
     end
     @status = nil
-    action("Uploading new files") do
-      upload_missing_files(manifest, missing_hashes)
+    action("Uploading new app files") do
+      upload_missing_files(dir, manifest, missing_hashes)
     end
 
     uri = URI.parse("#{anvil_host}/manifest/build")
@@ -165,7 +165,7 @@ private
     anvil["/file/#{hash}"].post :data => File.new(name, "rb")
   end
 
-  def upload_missing_files(manifest, missing_hashes)
+  def upload_missing_files(root, manifest, missing_hashes)
     names_by_hash = manifest_names_by_hash(manifest)
     bucket_missing_hashes = missing_hashes.inject({}) do |ax, hash|
       index = hash.hash % PUSH_THREAD_COUNT
@@ -176,7 +176,7 @@ private
     threads = bucket_missing_hashes.values.map do |hashes|
       Thread.new do
         hashes.each do |hash|
-          upload_file hash, names_by_hash[hash]
+          upload_file hash, File.join(root, names_by_hash[hash])
         end
       end
     end
