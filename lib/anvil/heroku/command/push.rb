@@ -64,6 +64,7 @@ class Heroku::Command::Push < Heroku::Command::Base
   def index
     dir = shift_argument || "."
     manifest = action("Generating application manifest") do
+    validate_arguments!
       directory_manifest(dir)
     end
     missing_hashes = action("Computing diff for upload") do
@@ -196,6 +197,7 @@ class Heroku::Command::Release < Heroku::Command::Base
   #
   def index
     error("Usage: heroku release SLUG_URL") unless slug_url = shift_argument
+    validate_arguments!
     release_slug(slug_url, app)
   end
 
