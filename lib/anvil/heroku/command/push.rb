@@ -77,6 +77,25 @@ class Heroku::Command::Push < Heroku::Command::Base
       upload_missing_files(dir, manifest, missing_hashes)
     end
 
+    if File.exists?(options[:buildpack]) && File.directory?(options[:buildpack])
+      buildpack = action ("Generating buildpack manifest") do
+        directory_manifest(options[:buildpack])
+      end
+      missing_hashes = action("Computing diff for buildpack upload") do
+        buildpack = directory_manifest(options[:buildpack])
+        missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(buildpack)).to_s)
+        @status = "#{missing.length} files needed"
+        missing
+      end
+      @status = nil
+      action("Uploading new buildpack files") do
+        upload_missing_files(options[:buildpack], buildpack, missing_hashes)
+      end
+      options[:buildpack] = action("Saving buildpack manifest") do
+        json_decode(anvil["/manifest/create"].post(:manifest => json_encode(buildpack)).to_s)["url"]
+      end
+    end
+
     uri = URI.parse("#{anvil_host}/manifest/build")
 
     http = Net::HTTP.new(uri.host, uri.port)
