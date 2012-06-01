@@ -1,3 +1,4 @@
+require "anvil/heroku/manifest"
 require "cgi"
 require "digest/sha2"
 require "heroku/command/base"
@@ -23,45 +24,9 @@ class Heroku::Command::Push < Heroku::Command::Base
     dir = shift_argument || "."
     validate_arguments!
 
-    manifest = action("Generating app manifest") do
-      directory_manifest(dir)
-    end
+    manifest = sync_dir(dir, "app")
 
-    missing_hashes = action("Computing diff for app upload") do
-      missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(manifest)).to_s)
-      @status = "#{missing.length} files needed"
-      missing
-    end
-    @status = nil
-
-    action("Uploading new app files") do
-      upload_missing_files(dir, manifest, missing_hashes)
-    end
-
-    if options[:buildpack] && File.exists?(options[:buildpack]) && File.directory?(options[:buildpack])
-      buildpack = action ("Generating buildpack manifest") do
-        directory_manifest(options[:buildpack])
-      end
-
-      missing_hashes = action("Computing diff for buildpack upload") do
-        buildpack = directory_manifest(options[:buildpack])
-        missing = json_decode(anvil["/manifest/diff"].post(:manifest => json_encode(buildpack)).to_s)
-        @status = "#{missing.length} files needed"
-        missing
-      end
-      @status = nil
-
-      action("Uploading new buildpack files") do
-        upload_missing_files(options[:buildpack], buildpack, missing_hashes)
-      end
-
-      options[:buildpack] = action("Saving buildpack manifest") do
-        json_decode(anvil["/manifest/create"].post(:manifest => json_encode(buildpack)).to_s)["url"]
-      end
-    end
-
-    uri = URI.parse("#{anvil_host}/manifest/build")
-
+    uri  = URI.parse("#{anvil_host}/manifest/build")
     http = Net::HTTP.new(uri.host, uri.port)
 
     if uri.scheme == "https"
@@ -75,8 +40,8 @@ class Heroku::Command::Push < Heroku::Command::Base
 
     req.set_form_data({
       "env"       => env,
-      "manifest"  => json_encode(manifest),
-      "buildpack" => options[:buildpack]
+      "manifest"  => manifest.to_json,
+      "buildpack" => prepare_buildpack(options[:buildpack])
     })
 
     slug_url = nil
@@ -121,34 +86,6 @@ private
     Heroku::Auth
   end
 
-  def directory_manifest(dir)
-    root = Pathname.new(dir)
-
-    Dir[File.join(dir, "**", "*")].inject({}) do |hash, file|
-      next(hash) if File.directory?(file)
-      next(hash) if file =~ /\.git/
-      hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
-      hash
-    end
-  end
-
-  def file_manifest(file)
-    stat = File.stat(file)
-
-    {
-      "ctime" => stat.ctime.to_i,
-      "mtime" => stat.mtime.to_i,
-      "mode"  => "%o" % stat.mode,
-      "hash"  => Digest::SHA2.hexdigest(File.open(file, "rb").read)
-    }
-  end
-
-  def manifest_names_by_hash(manifest)
-    manifest.inject({}) do |ax, (name, file_manifest)|
-      ax.update file_manifest["hash"] => name
-    end
-  end
-
   def parse_procfile(filename)
     return {} unless File.exists?(filename)
     File.read(filename).split("\n").inject({}) do |ax, line|
@@ -159,12 +96,41 @@ private
     end
   end
 
+  def prepare_buildpack(buildpack_url)
+    return nil unless buildpack_url
+    return buildpack_url unless File.exists?(buildpack_url) && File.directory?(buildpack_url)
+
+    manifest = sync_dir(buildpack_url, "buildpack")
+
+    new_buildpack_url = action("Saving buildpack manifest") do
+      json_decode(anvil["/manifest/create"].post(:manifest => manifest.to_json).to_s)["url"]
+    end
+  end
+
+  def sync_dir(dir, name)
+    manifest = action ("Generating #{name} manifest") do
+      Heroku::Manifest.new(dir)
+    end
+
+    missing_hashes = action("Computing diff for #{name} upload") do
+      missing = json_decode(anvil["/manifest/diff"].post(:manifest => manifest.to_json).to_s)
+      @status = "#{missing.length} files needed"
+      missing
+    end
+    @status = nil
+
+    action("Uploading new #{name} files") do
+      upload_missing_files(manifest, missing_hashes)
+    end
+
+    manifest
+  end
+
   def upload_file(hash, name)
     anvil["/file/#{hash}"].post :data => File.new(name, "rb")
   end
 
-  def upload_missing_files(root, manifest, missing_hashes)
-    names_by_hash = manifest_names_by_hash(manifest)
+  def upload_missing_files(manifest, missing_hashes)
     bucket_missing_hashes = missing_hashes.inject({}) do |ax, hash|
       index = hash.hash % PUSH_THREAD_COUNT
       ax[index] ||= []
@@ -174,7 +140,7 @@ private
     threads = bucket_missing_hashes.values.map do |hashes|
       Thread.new do
         hashes.each do |hash|
-          upload_file hash, File.join(root, names_by_hash[hash])
+          upload_file hash, manifest.filename_for_hash(hash)
         end
       end
     end
