@@ -125,7 +125,9 @@ private
     root = Pathname.new(dir)
 
     Dir[File.join(dir, "**", "*")].inject({}) do |hash, file|
-      hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file) unless File.directory?(file)
+      next(hash) if File.directory?(file)
+      next(hash) if file =~ /\.git/
+      hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
       hash
     end
   end
