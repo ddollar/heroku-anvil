@@ -8,9 +8,9 @@ require "tmpdir"
 
 # deploy code
 #
-class Heroku::Command::Push < Heroku::Command::Base
+class Heroku::Command::Build < Heroku::Command::Base
 
-  # push [DIR]
+  # build [DIR]
   #
   # deploy code
   #
