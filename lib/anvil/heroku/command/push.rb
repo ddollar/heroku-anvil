@@ -10,8 +10,6 @@ require "tmpdir"
 #
 class Heroku::Command::Push < Heroku::Command::Base
 
-  PUSH_THREAD_COUNT = 40
-
   # push [DIR]
   #
   # deploy code
@@ -83,6 +81,7 @@ private
       count = manifest.upload
       @status = "#{count} files needed"
     end
+    @status = nil
 
     manifest
   end
