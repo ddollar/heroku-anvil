@@ -38,7 +38,7 @@ class Heroku::Command::Push < Heroku::Command::Base
       upload_missing_files(dir, manifest, missing_hashes)
     end
 
-    if File.exists?(options[:buildpack]) && File.directory?(options[:buildpack])
+    if options[:buildpack] && File.exists?(options[:buildpack]) && File.directory?(options[:buildpack])
       buildpack = action ("Generating buildpack manifest") do
         directory_manifest(options[:buildpack])
       end
