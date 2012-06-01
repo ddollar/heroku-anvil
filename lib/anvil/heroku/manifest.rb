@@ -1,20 +1,58 @@
 require "heroku"
+require "net/http"
+require "net/https"
 require "json"
 
 class Heroku::Manifest
+
+  PUSH_THREAD_COUNT = 40
 
   attr_reader :dir
 
   def initialize(dir)
     @dir = dir
     @manifest = directory_manifest(@dir)
-    @filenames_by_hash = @manifest.inject({}) do |ax, (name, file_manifest)|
-      ax.update file_manifest["hash"] => File.join(@dir, name)
-    end
   end
 
-  def filename_for_hash(hash)
-    @filenames_by_hash[hash]
+  def build(options={})
+    uri  = URI.parse("#{anvil_host}/manifest/build")
+    http = Net::HTTP.new(uri.host, uri.port)
+
+    if uri.scheme == "https"
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    end
+
+    req = Net::HTTP::Post.new uri.request_uri
+
+    env = options[:env] || {}
+
+    req.set_form_data({
+      "env"       => options[:env],
+      "manifest"  => self.to_json,
+      "buildpack" => options[:buildpack]
+    })
+
+    slug_url = nil
+
+    http.request(req) do |res|
+      slug_url = res["x-slug-url"]
+      res.read_body do |chunk|
+        yield chunk
+      end
+    end
+
+    slug_url
+  end
+
+  def save
+    JSON.load(anvil["/manifest/create"].post(:manifest => self.to_json).to_s)["url"]
+  end
+
+  def upload
+    missing = JSON.load(anvil["/manifest/diff"].post(:manifest => self.to_json).to_s)
+    upload_hashes missing
+    missing.length
   end
 
   def to_json
@@ -22,6 +60,18 @@ class Heroku::Manifest
   end
 
 private
+
+  def auth
+    Heroku::Auth
+  end
+
+  def anvil
+    @anvil ||= RestClient::Resource.new(anvil_host, auth.user, auth.password)
+  end
+
+  def anvil_host
+    ENV["ANVIL_HOST"] || "http://anvil.herokuapp.com"
+  end
 
   def directory_manifest(dir)
     root = Pathname.new(dir)
@@ -44,5 +94,28 @@ private
     }
   end
 
+  def upload_file(hash, filename)
+    anvil["/file/#{hash}"].post :data => File.new(filename, "rb")
+  end
+
+  def upload_hashes(hashes)
+    filenames_by_hash = @manifest.inject({}) do |ax, (name, file_manifest)|
+      ax.update file_manifest["hash"] => File.join(@dir, name)
+    end
+    bucket_hashes = hashes.inject({}) do |ax, hash|
+      index = hash.hash % PUSH_THREAD_COUNT
+      ax[index] ||= []
+      ax[index]  << hash
+      ax
+    end
+    threads = bucket_hashes.values.map do |hashes|
+      Thread.new do
+        hashes.each do |hash|
+          upload_file hash, filenames_by_hash[hash]
+        end
+      end
+    end
+    threads.each(&:join)
+  end
 
 end
