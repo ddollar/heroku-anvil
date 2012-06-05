@@ -10,6 +10,9 @@ require "tmpdir"
 #
 class Heroku::Command::Build < Heroku::Command::Base
 
+  PROTOCOL_COMMAND_HEADER = "\000\042\000"
+  PROTOCOL_COMMAND_EXIT   = 1
+
   # build [DIR]
   #
   # deploy code
@@ -30,7 +33,7 @@ class Heroku::Command::Build < Heroku::Command::Base
     }
 
     slug_url = manifest.build(build_options) do |chunk|
-      print chunk
+      print process_commands(chunk)
     end
 
     if options[:release]
@@ -53,6 +56,22 @@ class Heroku::Command::Build < Heroku::Command::Base
 
 
 private
+
+  def process_commands(chunk)
+    if chunk[0,3] == PROTOCOL_COMMAND_HEADER
+      buffer = StringIO.new(chunk[3..-1])
+      case command = buffer.read(1).ord
+      when PROTOCOL_COMMAND_EXIT then
+        code = buffer.read(1).ord
+        puts "ERROR: Build exited with code: #{code}"
+        exit 1
+      else
+        puts "unknown[#{command}]"
+      end
+      chunk = buffer.string
+    end
+    chunk
+  end
 
   def parse_procfile(filename)
     return {} unless File.exists?(filename)
