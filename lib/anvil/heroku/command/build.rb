@@ -71,8 +71,10 @@ private
       case command = buffer.read(1).ord
       when PROTOCOL_COMMAND_EXIT then
         code = buffer.read(1).ord
-        puts "ERROR: Build exited with code: #{code}"
-        exit 1
+        unless code.zero?
+          puts "ERROR: Build exited with code: #{code}"
+          exit code
+        end
       else
         puts "unknown[#{command}]"
       end
