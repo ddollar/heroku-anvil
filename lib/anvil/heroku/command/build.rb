@@ -19,9 +19,15 @@ class Heroku::Command::Build < Heroku::Command::Base
   #
   # -b, --buildpack URL  # use a custom buildpack
   # -e, --runtime-env    # use runtime environment during build
+  # -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
   # -r, --release        # release the slug to an app
   #
   def index
+    if options[:pipeline]
+      old_stdout = $stdout.dup
+      $stdout = $stderr
+    end
+
     dir = shift_argument || "."
     validate_arguments!
 
@@ -35,6 +41,8 @@ class Heroku::Command::Build < Heroku::Command::Base
     slug_url = manifest.build(build_options) do |chunk|
       print process_commands(chunk)
     end
+
+    old_stdout.puts slug_url if options[:pipeline]
 
     if options[:release]
       Dir.mktmpdir do |dir|
