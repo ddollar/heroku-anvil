@@ -38,26 +38,19 @@ class Heroku::Command::Build < Heroku::Command::Base
       :env       => options[:runtime_env] ? heroku.config_vars(app) : {}
     }
 
-    slug_url = manifest.build(build_options) do |chunk|
+    build_url = manifest.build(build_options) do |chunk|
       print process_commands(chunk)
     end
 
-    old_stdout.puts slug_url if options[:pipeline]
+    old_stdout.puts build_url if options[:pipeline]
 
     if options[:release]
-      Dir.mktmpdir do |dir|
-        action("Downloading slug") do
-          File.open("#{dir}/slug.img", "wb") do |file|
-            file.print RestClient.get(slug_url).body
-          end
-        end
-        release = heroku.releases_new(app)
-        action("Releasing to #{app}") do
-          release = heroku.release(app, "#{dir}/slug.img", "Anvil deploy", {
-            "process_types" => parse_procfile("./Procfile")
-          })
-          @status = release["release"]
-        end
+      action("Releasing to #{app}") do
+        release = JSON.parse(releaser["/apps/#{app}/release"].post({
+          :build_url   => build_url,
+          :description => "Deployed from anvil"
+        }).body)
+        status release["release"]
       end
     end
   end
@@ -65,9 +58,18 @@ class Heroku::Command::Build < Heroku::Command::Base
 
 private
 
+  def auth
+    Heroku::Auth
+  end
+
+  def releaser
+    RestClient::Resource.new("releases-test.herokuapp.com", auth.user, auth.password)
+  end
+
   def process_commands(chunk)
-    if chunk[0,3] == PROTOCOL_COMMAND_HEADER
-      buffer = StringIO.new(chunk[3..-1])
+    if location = chunk.index(PROTOCOL_COMMAND_HEADER)
+      buffer = StringIO.new(chunk[location..-1])
+      header = buffer.read(3)
       case command = buffer.read(1).ord
       when PROTOCOL_COMMAND_EXIT then
         code = buffer.read(1).ord
@@ -78,7 +80,7 @@ private
       else
         puts "unknown[#{command}]"
       end
-      chunk = buffer.string
+      chunk = chunk[0..location-1]
     end
     chunk
   end

@@ -7,35 +7,30 @@ class Heroku::Command::Release < Heroku::Command::Base
   # release a slug
   #
   def index
-    error("Usage: heroku release SLUG_URL") unless slug_url = shift_argument
+    error("Usage: heroku release SLUG_URL") unless build_url = shift_argument
     validate_arguments!
 
-    Dir.mktmpdir do |dir|
-      action("Downloading slug") do
-        File.open("#{dir}/slug.img", "wb") do |file|
-          file.print RestClient.get(slug_url).body
-        end
-      end
-      release = heroku.releases_new(app)
-      action("Releasing to #{app}") do
-        release = heroku.release(app, "#{dir}/slug.img", "Anvil deploy", {
-          "process_types" => parse_procfile("./Procfile")
-        })
-        @status = release["release"]
-      end
+    action("Releasing to #{app}") do
+      release = JSON.parse(releaser["/apps/#{app}/release"].post({
+        :build_url   => build_url,
+        :description => "Deployed from anvil"
+      }).body)
+      status release["release"]
     end
   end
 
 private
 
-  def parse_procfile(filename)
-    return {} unless File.exists?(filename)
-    File.read(filename).split("\n").inject({}) do |ax, line|
-      if line =~ /^([A-Za-z0-9_]+):\s*(.+)$/
-        ax[$1] = $2
-      end
-      ax
-    end
+  def auth
+    Heroku::Auth
+  end
+
+  def release_host
+    ENV["RELEASE_HOST"] || "https://releases-test.herokuapp.com"
+  end
+
+  def releaser
+    RestClient::Resource.new(release_host, auth.user, auth.password)
   end
 
 end
