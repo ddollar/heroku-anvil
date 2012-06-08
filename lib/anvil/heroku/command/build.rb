@@ -46,10 +46,7 @@ class Heroku::Command::Build < Heroku::Command::Base
 
     if options[:release]
       action("Releasing to #{app}") do
-        release = JSON.parse(releaser["/apps/#{app}/release"].post({
-          :build_url   => build_url,
-          :description => "Deployed from anvil"
-        }).body)
+        release = heroku.release(app, "Anvil deploy", :build_url => build_url)
         status release["release"]
       end
     end

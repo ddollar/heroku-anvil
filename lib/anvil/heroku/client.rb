@@ -1,22 +1,22 @@
 class Heroku::Client
-  def releases_new(app_name)
-    json_decode(get("/apps/#{app_name}/releases/new").to_s)
+
+  # valid options:
+  #
+  # slug_url: url to a slug
+  #
+  def release(app_name, description, options={})
+    release_options = { :description => description }.merge(options)
+    json_decode(releaser["/apps/#{app_name}/release"].post(release_options))
   end
 
-  def releases_create(app_name, payload)
-    json_decode(post("/apps/#{app_name}/releases", json_encode(payload)))
+private
+
+  def release_host
+    ENV["RELEASE_HOST"] || "https://releases-test.herokuapp.com"
   end
 
-  def release(app_name, slug, description, options={})
-    release = releases_new(app_name)
-    RestClient.put(release["slug_put_url"], File.open(slug, "rb"), :content_type => nil)
-    payload = release.merge({
-      "slug_version" => 2,
-      "run_deploy_hooks" => true,
-      "user" => user,
-      "release_descr" => description,
-      "head" => Digest::SHA1.hexdigest(Time.now.to_f.to_s)
-    }) { |k, v1, v2| v1 || v2 }.merge(options)
-    releases_create(app_name, payload)
+  def releaser
+    RestClient::Resource.new(release_host, Heroku::Auth.user, Heroku::Auth.password)
   end
+
 end
