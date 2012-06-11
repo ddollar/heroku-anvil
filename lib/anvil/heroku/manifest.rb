@@ -77,7 +77,11 @@ private
   def directory_manifest(dir)
     root = Pathname.new(dir)
 
-    Dir[File.join(dir, "**", "*")].inject({}) do |hash, file|
+    ignore = process_slugignore(File.join(dir, ".slugignore"))
+
+    Dir.glob(File.join(dir, "**", "*"), File::FNM_DOTMATCH).inject({}) do |hash, file|
+      next(hash) if %w( . .. ).include?(File.basename(file))
+      next(hash) if ignore.include?(file)
       next(hash) if File.directory?(file)
       next(hash) if file =~ /\.git/
       hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
@@ -93,6 +97,14 @@ private
       "mode"  => "%o" % stat.mode,
       "hash"  => Digest::SHA2.hexdigest(File.open(file, "rb").read)
     }
+  end
+
+  def process_slugignore(filename)
+    return [] unless File.exists?(filename)
+    root = File.dirname(filename)
+    File.read(filename).split("\n").map do |entry|
+      Dir.glob(File.join(root, entry, "**", "*"), File::FNM_DOTMATCH)
+    end.flatten.compact
   end
 
   def upload_file(hash, filename)
