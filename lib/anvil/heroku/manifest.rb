@@ -91,12 +91,16 @@ private
 
   def file_manifest(file)
     stat = File.stat(file)
-    {
-      "ctime" => stat.ctime.to_i,
+    manifest = {
       "mtime" => stat.mtime.to_i,
       "mode"  => "%o" % stat.mode,
-      "hash"  => Digest::SHA2.hexdigest(File.open(file, "rb").read)
     }
+    if File.symlink?(file)
+      manifest["link"] = File.readlink(file)
+    else
+      manifest["hash"] = Digest::SHA2.hexdigest(File.open(file, "rb").read)
+    end
+    manifest
   end
 
   def process_slugignore(filename)
