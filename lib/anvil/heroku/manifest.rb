@@ -7,11 +7,13 @@ class Heroku::Manifest
 
   PUSH_THREAD_COUNT = 40
 
+  attr_reader :cache_url
   attr_reader :dir
 
-  def initialize(dir)
+  def initialize(dir, cache_url=nil)
     @dir = dir
     @manifest = directory_manifest(@dir)
+    @cache_url = cache_url
   end
 
   def build(options={})
@@ -28,15 +30,17 @@ class Heroku::Manifest
     env = options[:env] || {}
 
     req.set_form_data({
+      "buildpack" => options[:buildpack],
+      "cache"     => @cache_url,
       "env"       => options[:env],
-      "manifest"  => self.to_json,
-      "buildpack" => options[:buildpack]
+      "manifest"  => self.to_json
     })
 
     slug_url = nil
 
     http.request(req) do |res|
       slug_url = res["x-slug-url"]
+      @cache_url = res["x-cache-url"]
       res.read_body do |chunk|
         yield chunk
       end

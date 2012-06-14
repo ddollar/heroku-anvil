@@ -42,6 +42,8 @@ class Heroku::Command::Build < Heroku::Command::Base
       print process_commands(chunk)
     end
 
+    File.open("#{dir}/.anvil-cache", "w") { |f| f.puts manifest.cache_url }
+
     old_stdout.puts build_url if options[:pipeline]
 
     if options[:release]
@@ -102,7 +104,8 @@ private
 
   def sync_dir(dir, name)
     manifest = action("Generating #{name} manifest") do
-      Heroku::Manifest.new(dir)
+      cache = File.read("#{dir}/.anvil-cache").chomp rescue nil
+      Heroku::Manifest.new(dir, cache)
     end
 
     action("Uploading new files") do
