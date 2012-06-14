@@ -77,7 +77,7 @@ private
       else
         puts "unknown[#{command}]"
       end
-      chunk = chunk[0..location-1]
+      chunk = chunk[0,location] + buffer.read
     end
     chunk
   end
