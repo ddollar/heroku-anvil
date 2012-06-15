@@ -1,7 +1,7 @@
 require "distributor"
 require "distributor/connector"
 require "distributor/multiplexer"
-require "json"
+require "distributor/okjson"
 require "pty"
 require "socket"
 
@@ -32,12 +32,12 @@ class Distributor::Server
         when "tunnel" then
           port = (data["port"] || ENV["PORT"] || 5000).to_i
           ch = tunnel(port)
-          @multiplexer.output 0, JSON.dump({ "id" => data["id"], "command" => "ack", "ch" => ch, "port" => port })
+          @multiplexer.output 0, Distributor::OkJson.encode({ "id" => data["id"], "command" => "ack", "ch" => ch, "port" => port })
         when "close" then
           @multiplexer.close data["ch"]
         when "run" then
           ch = run(data["args"])
-          @multiplexer.output 0, JSON.dump({ "id" => data["id"], "command" => "ack", "ch" => ch })
+          @multiplexer.output 0, Distributor::OkJson.encode({ "id" => data["id"], "command" => "ack", "ch" => ch })
         else
           raise "no such command: #{command}"
         end
@@ -93,7 +93,7 @@ class Distributor::Server
     ch
   end
   def start
-    @multiplexer.output 0, JSON.dump({ "command" => "hello" })
+    @multiplexer.output 0, Distributor::OkJson.encode({ "command" => "hello" })
     loop { @connector.listen }
   end
 
@@ -106,7 +106,7 @@ private
 
   def dequeue_json
     while idx = @json.index("}")
-      yield JSON.parse(@json[0..idx])
+      yield Distributor::OkJson.decode(@json[0..idx])
       @json = @json[idx+1..-1]
     end
   end

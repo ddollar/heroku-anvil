@@ -1,9 +1,11 @@
 require "heroku"
+require "heroku/helpers"
 require "net/http"
 require "net/https"
-require "json"
 
 class Heroku::Manifest
+
+  include Heroku::Helpers
 
   PUSH_THREAD_COUNT = 40
 
@@ -50,18 +52,18 @@ class Heroku::Manifest
   end
 
   def save
-    id = JSON.load(anvil["/manifest"].post(:manifest => self.to_json).to_s)["id"]
+    id = json_decode(anvil["/manifest"].post(:manifest => self.to_json).to_s)["id"]
     "#{anvil_host}/manifest/#{id}.json"
   end
 
   def upload
-    missing = JSON.load(anvil["/manifest/diff"].post(:manifest => self.to_json).to_s)
+    missing = json_decode(anvil["/manifest/diff"].post(:manifest => self.to_json).to_s)
     upload_hashes missing
     missing.length
   end
 
   def to_json
-    JSON.dump(@manifest)
+    json_encode(@manifest)
   end
 
 private

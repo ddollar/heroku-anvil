@@ -1,4 +1,5 @@
 require "distributor"
+require "distributor/okjson"
 require "distributor/packet"
 
 class Distributor::Multiplexer
@@ -31,7 +32,7 @@ class Distributor::Multiplexer
     return if ch.nil?
     writer(ch).write data
   rescue IOError
-    output 0, JSON.dump({ "command" => "close", "ch" => ch })
+    output 0, Distributor::OkJson.encode({ "command" => "close", "ch" => ch })
   end
 
   def output(ch, data)
@@ -40,7 +41,7 @@ class Distributor::Multiplexer
   end
 
   def close(ch)
-    output 0, JSON.dump({ "command" => "close", "ch" => ch })
+    output 0, Distributor::OkJson.encode({ "command" => "close", "ch" => ch })
   rescue IOError
   end
 

@@ -1,7 +1,7 @@
 require "distributor"
 require "distributor/connector"
 require "distributor/multiplexer"
-require "json"
+require "distributor/okjson"
 require "thread"
 
 class Distributor::Client
@@ -57,13 +57,13 @@ class Distributor::Client
 
   def run(command, &handler)
     id = generate_id
-    @multiplexer.output 0, JSON.dump({ "id" => id, "command" => "run", "args" => command })
+    @multiplexer.output 0, Distributor::OkJson.encode({ "id" => id, "command" => "run", "args" => command })
     @handlers[id] = handler
   end
 
   def tunnel(port, &handler)
     id = generate_id
-    @multiplexer.output 0, JSON.dump({ "id" => id, "command" => "tunnel", "port" => port })
+    @multiplexer.output 0, Distributor::OkJson.encode({ "id" => id, "command" => "tunnel", "port" => port })
     @handlers[id] = handler
   end
 
@@ -77,7 +77,7 @@ class Distributor::Client
           output.write data
           output.flush
         rescue EOFError
-          @multiplexer.output 0, JSON.dump({ "command" => "close", "ch" => ch })
+          @multiplexer.output 0, Distributor::OkJson.encode({ "command" => "close", "ch" => ch })
         end
       end
     end
@@ -119,7 +119,7 @@ private
 
   def dequeue_json
     while idx = @json.index("}")
-      yield JSON.parse(@json[0..idx])
+      yield Distributor::OkJson.decode(@json[0..idx])
       @json = @json[idx+1..-1]
     end
   end
