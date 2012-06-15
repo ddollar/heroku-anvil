@@ -7,7 +7,7 @@ class Heroku::Command::Start < Heroku::Command::Base
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1
 
-  # start APP
+  # start [DIR]
   #
   # start a development dyno on development app APP
   #
@@ -15,8 +15,8 @@ class Heroku::Command::Start < Heroku::Command::Base
   # -e, --runtime-env  # use the runtime env
   #
   def index
-    dir = "."
-    app = shift_argument || error("Must specify a development app")
+    dir = shift_argument || "."
+    app = options[:app] || error("Must specify a development app with -a")
     validate_arguments!
 
     route = action("Creating endpoint") do
@@ -34,7 +34,7 @@ class Heroku::Command::Start < Heroku::Command::Base
       :env       => options[:runtime_env] ? heroku.config_vars(app) : {}
     }
 
-    action("Preparing #{app}") do
+    action("Preparing development dyno on #{app}") do
       heroku.release(app, "Deployed base components", :build_url => anvil_slug_url)
     end
 
