@@ -4,5 +4,5 @@ end
 
 require "anvil/heroku/client"
 require "anvil/heroku/command/build"
-require "anvil/heroku/command/develop"
 require "anvil/heroku/command/release"
+require "anvil/heroku/command/start"
