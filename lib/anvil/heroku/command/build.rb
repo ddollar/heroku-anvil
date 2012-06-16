@@ -69,9 +69,9 @@ private
     if location = chunk.index(PROTOCOL_COMMAND_HEADER)
       buffer = StringIO.new(chunk[location..-1])
       header = buffer.read(3)
-      case command = buffer.read(1).ord
+      case command = buffer.read(1)[0].ord
       when PROTOCOL_COMMAND_EXIT then
-        code = buffer.read(1).ord
+        code = buffer.read(1)[0].ord
         unless code.zero?
           puts "ERROR: Build exited with code: #{code}"
           exit code
