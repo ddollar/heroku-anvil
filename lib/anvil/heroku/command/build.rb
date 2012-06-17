@@ -28,7 +28,7 @@ class Heroku::Command::Build < Heroku::Command::Base
       $stdout = $stderr
     end
 
-    dir = shift_argument || "."
+    dir = File.expand_path(shift_argument || ".")
     validate_arguments!
 
     manifest = sync_dir(dir, "app")
@@ -42,7 +42,7 @@ class Heroku::Command::Build < Heroku::Command::Base
       print process_commands(chunk)
     end
 
-    File.open("#{dir}/.anvil-cache", "w") { |f| f.puts manifest.cache_url }
+    write_anvil_metadata dir, "cache", manifest.cache_url
 
     old_stdout.puts build_url if options[:pipeline]
 
@@ -104,7 +104,7 @@ private
 
   def sync_dir(dir, name)
     manifest = action("Generating #{name} manifest") do
-      cache = File.read("#{dir}/.anvil-cache").chomp rescue nil
+      cache = read_anvil_metadata(dir, "cache")
       Heroku::Manifest.new(dir, cache)
     end
 
@@ -115,6 +115,22 @@ private
     @status = nil
 
     manifest
+  end
+
+  def anvil_metadata_dir(root)
+    dir = File.join(root, ".anvil")
+    FileUtils.mkdir_p(dir)
+    dir
+  end
+
+  def read_anvil_metadata(root, name)
+    File.open(File.join(anvil_metadata_dir(root), name)).read.chomp rescue nil
+  end
+
+  def write_anvil_metadata(root, name, data)
+    File.open(File.join(anvil_metadata_dir(root), name), "w") do |file|
+      file.puts data
+    end
   end
 
 end
