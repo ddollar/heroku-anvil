@@ -1,4 +1,6 @@
+require "anvil/heroku/manifest"
 require "distributor/client"
+require "listen"
 
 # run your local code on heroku
 #
@@ -15,7 +17,7 @@ class Heroku::Command::Start < Heroku::Command::Base
   # -e, --runtime-env  # use the runtime env
   #
   def index
-    dir = shift_argument || "."
+    dir = File.expand_path(shift_argument || ".")
     app = options[:app] || error("Must specify a development app with -a")
     validate_arguments!
 
@@ -63,7 +65,8 @@ class Heroku::Command::Start < Heroku::Command::Base
     dyno_to_client = pipe
 
     FileUtils.mkdir_p "#{dir}/log"
-    development_log = File.open("#{dir}/log/heroku-development.log", "a+")
+    @@development_log = File.open("#{dir}/log/heroku-development.log", "a+")
+    @@development_log.sync = true
 
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
@@ -74,9 +77,18 @@ class Heroku::Command::Start < Heroku::Command::Base
       end
 
       client.run("foreman start") do |ch|
-        client.hookup ch, nil, development_log
+        client.hookup ch, nil, @@development_log
       end
     end
+
+    client.on_command do |command, data|
+      case command
+      when "file.download"
+        @@development_log.puts "Sync complete: #{data["name"]}"
+      end
+    end
+
+    Thread.abort_on_exception = true
 
     rendezvous = Heroku::Client::Rendezvous.new(
       :rendezvous_url => process["rendezvous_url"],
@@ -88,6 +100,23 @@ class Heroku::Command::Start < Heroku::Command::Base
 
     rendezvous.on_connect do
       Thread.new { client.start }
+    end
+
+    Thread.new do
+      listener = Listen.to(dir)
+      listener.change do |modified, added, removed|
+        modified.concat(added).each do |file|
+          relative = file[dir.length+1..-1]
+          upload_file dir, relative, client
+        end
+        removed.each do |file|
+          relative = file[dir.length+1..-1]
+          remove_file dir, relative, client
+        end
+      end
+      listener.latency(0.2)
+      listener.polling_fallback_message("")
+      listener.start
     end
 
     Signal.trap("INT") do
@@ -160,8 +189,25 @@ private
   end
 
   def shutdown(app, process)
-    api.post_ps_stop app, :ps => process
+    # api.post_ps_stop app, :ps => process
     exit 0
+  end
+
+  def upload_file(dir, file, client)
+    manifest = Heroku::Manifest.new
+    full_filename = File.join(dir, file)
+    manifest.add full_filename
+    @@development_log.puts "File changed: #{file}"
+    manifest.upload
+    hash = manifest.manifest[full_filename]["hash"]
+    @@development_log.puts "Upload complete: #{file}"
+    client.command "file.download", "name" => file, "hash" => hash
+  end
+
+  def remove_file(dir, file, client)
+    @@development_log.puts "File removed: #{file}"
+    client.command "file.delete", "name" => file
+    @@development_log.puts "Sync complete: #{file}"
   end
 
 end
