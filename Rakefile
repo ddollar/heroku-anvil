@@ -3,6 +3,7 @@ task :revendor do
   FileUtils.rm_rf File.join(root, "vendor")
 
   vendor "distributor", "https://github.com/ddollar/distributor.git"
+  vendor "guard",       "https://github.com/guard/guard.git"
 end
 
 def root
