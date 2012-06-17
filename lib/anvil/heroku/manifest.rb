@@ -11,10 +11,11 @@ class Heroku::Manifest
 
   attr_reader :cache_url
   attr_reader :dir
+  attr_reader :manifest
 
-  def initialize(dir, cache_url=nil)
+  def initialize(dir=nil, cache_url=nil)
     @dir = dir
-    @manifest = directory_manifest(@dir)
+    @manifest = @dir ? directory_manifest(@dir) : {}
     @cache_url = cache_url
   end
 
@@ -66,6 +67,10 @@ class Heroku::Manifest
     json_encode(@manifest)
   end
 
+  def add(filename)
+    @manifest[filename] = file_manifest(filename)
+  end
+
 private
 
   def auth
@@ -104,7 +109,7 @@ private
     if File.symlink?(file)
       manifest["link"] = File.readlink(file)
     else
-      manifest["hash"] = Digest::SHA2.hexdigest(File.open(file, "rb").read)
+      manifest["hash"] = calculate_hash(file)
     end
     manifest
   end
@@ -117,13 +122,19 @@ private
     end.flatten.compact
   end
 
-  def upload_file(hash, filename)
+  def calculate_hash(filename)
+    Digest::SHA2.hexdigest(File.open(filename, "rb").read)
+  end
+
+  def upload_file(filename, hash=nil)
+    hash ||= calculate_hash(filename)
     anvil["/file/#{hash}"].post :data => File.new(filename, "rb")
+    hash
   end
 
   def upload_hashes(hashes)
     filenames_by_hash = @manifest.inject({}) do |ax, (name, file_manifest)|
-      ax.update file_manifest["hash"] => File.join(@dir, name)
+      ax.update file_manifest["hash"] => File.join(@dir.to_s, name)
     end
     bucket_hashes = hashes.inject({}) do |ax, hash|
       index = hash.hash % PUSH_THREAD_COUNT
@@ -134,7 +145,7 @@ private
     threads = bucket_hashes.values.map do |hashes|
       Thread.new do
         hashes.each do |hash|
-          upload_file hash, filenames_by_hash[hash]
+          upload_file filenames_by_hash[hash], hash
         end
       end
     end
