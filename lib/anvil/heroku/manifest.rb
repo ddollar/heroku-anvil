@@ -94,6 +94,7 @@ private
       next(hash) if %w( . .. ).include?(File.basename(file))
       next(hash) if ignore.include?(file)
       next(hash) if File.directory?(file)
+      next(hash) if File.pipe?(file)
       next(hash) if file =~ /\.git/
       hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
       hash
