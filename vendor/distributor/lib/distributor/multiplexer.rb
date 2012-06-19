@@ -7,8 +7,8 @@ class Distributor::Multiplexer
 
   def initialize(output)
     @output  = output
-    @readers = {}
-    @writers = {}
+    @readers = Hash.new { |hash,key| hash[key] = StringIO.new }
+    @writers = Hash.new { |hash,key| hash[key] = StringIO.new }
     @write_lock = Mutex.new
 
     @output.sync = true
@@ -22,11 +22,11 @@ class Distributor::Multiplexer
   end
 
   def reader(ch)
-    @readers[ch] || raise("no such channel: #{ch}")
+    @readers[ch]
   end
 
   def writer(ch)
-    @writers[ch] || raise("no such channel: #{ch}")
+    @writers[ch]
   end
 
   def input(io)

@@ -21,6 +21,7 @@ if ARGV.first == "server"
   # echo commands back with an ack parameter
   server.on_command do |command, data|
     server.command command, data.merge("ack" => Time.now.to_i)
+    server.output 15, {"foo" => "bar"}
   end
 
   server.start
