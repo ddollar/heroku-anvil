@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    distributor (0.5.0)
+    distributor (0.5.1)
       thor (>= 0.13.6)
 
 GEM

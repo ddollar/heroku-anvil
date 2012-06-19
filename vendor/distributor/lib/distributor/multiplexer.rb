@@ -1,7 +1,6 @@
 require "distributor"
 require "distributor/okjson"
 require "distributor/packet"
-require "thread"
 
 class Distributor::Multiplexer
 
@@ -9,7 +8,6 @@ class Distributor::Multiplexer
     @output  = output
     @readers = Hash.new { |hash,key| hash[key] = StringIO.new }
     @writers = Hash.new { |hash,key| hash[key] = StringIO.new }
-    @write_lock = Mutex.new
 
     @output.sync = true
   end
@@ -38,9 +36,7 @@ class Distributor::Multiplexer
   end
 
   def output(ch, data)
-    @write_lock.synchronize do
-      Distributor::Packet.write(@output, ch, data)
-    end
+    Distributor::Packet.write(@output, ch, data)
   rescue Errno::EPIPE
   end
 
