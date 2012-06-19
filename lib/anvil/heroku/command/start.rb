@@ -53,9 +53,7 @@ class Heroku::Command::Start < Heroku::Command::Base
 
     process = action("Starting development dyno") do
       status route["url"].gsub("tcp", "http")
-      run_attached(app, <<-EOF, develop_options)
-        bin/develop #{manifest_url} 2>&1
-      EOF
+      run_attached app, "bin/develop #{manifest_url}", develop_options
     end
     @status=nil
 
@@ -71,20 +69,19 @@ class Heroku::Command::Start < Heroku::Command::Base
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
-      client.run("bash") do |ch|
+      client.run("cd /app/work; foreman start -c") do |ch|
         client.hookup ch, $stdin.dup, $stdout.dup
         client.on_close(ch) { shutdown(app, process["process"]) }
       end
 
-      client.run("foreman start") do |ch|
-        client.hookup ch, nil, @@development_log
-      end
+      start_file_watcher   client, dir
+      start_console_server client, 13433
     end
 
     client.on_command do |command, data|
       case command
-      when "file.download"
-        @@development_log.puts "Sync complete: #{data["name"]}"
+      when /file.*/
+        #@@development_log.puts "Sync complete: #{data["name"]}"
       end
     end
 
@@ -100,23 +97,6 @@ class Heroku::Command::Start < Heroku::Command::Base
 
     rendezvous.on_connect do
       Thread.new { client.start }
-    end
-
-    Thread.new do
-      listener = Listen.to(dir)
-      listener.change do |modified, added, removed|
-        modified.concat(added).each do |file|
-          relative = file[dir.length+1..-1]
-          upload_file dir, relative, client
-        end
-        removed.each do |file|
-          relative = file[dir.length+1..-1]
-          remove_file dir, relative, client
-        end
-      end
-      listener.latency(0.2)
-      listener.polling_fallback_message("")
-      listener.start
     end
 
     Signal.trap("INT") do
@@ -135,6 +115,39 @@ class Heroku::Command::Start < Heroku::Command::Base
     ensure
       set_buffer true
     end
+  end
+
+  # start:console
+  #
+  # get a console into your development dyno
+  #
+  def console
+    connector = Distributor::Connector.new
+    console   = TCPSocket.new("localhost", 13433)
+
+    set_buffer false
+
+    connector.handle(console) do |io|
+      $stdout.write io.readpartial(4096)
+      $stdout.flush
+    end
+
+    connector.handle($stdin.dup) do |io|
+      console.write io.readpartial(4096)
+      console.flush
+    end
+
+    connector.on_close(console) do
+      p [:console_closed]
+    end
+
+    connector.on_close($stdin.dup) do |io|
+      p [:stdin_closed]
+    end
+
+    loop { connector.listen }
+  ensure
+    set_buffer true
   end
 
 private
@@ -159,7 +172,7 @@ private
   end
 
   def prepare_buildpack(buildpack_url)
-    return nil unless buildpack_url
+    return "https://buildkit.herokuapp.com/buildkit/default.tgz" unless buildpack_url
     return buildpack_url unless File.exists?(buildpack_url) && File.directory?(buildpack_url)
     manifest = upload_manifest("buildpack", buildpack_url)
     manifest.save
@@ -194,20 +207,61 @@ private
   end
 
   def upload_file(dir, file, client)
+    return if ignore_file?(file)
     manifest = Heroku::Manifest.new
     full_filename = File.join(dir, file)
     manifest.add full_filename
-    @@development_log.puts "File changed: #{file}"
+    #@@development_log.puts "File changed: #{file}"
     manifest.upload
     hash = manifest.manifest[full_filename]["hash"]
-    @@development_log.puts "Upload complete: #{file}"
     client.command "file.download", "name" => file, "hash" => hash
   end
 
   def remove_file(dir, file, client)
-    @@development_log.puts "File removed: #{file}"
+    return if ignore_file?(file)
+    #@@development_log.puts "File removed: #{file}"
     client.command "file.delete", "name" => file
-    @@development_log.puts "Sync complete: #{file}"
+  end
+
+  def ignore_file?(file)
+    return true if File.stat(file).pipe?
+    return true if file[-4..-1] == ".swp"
+    return true if file[0..5] == ".anvil"
+    false
+  end
+
+  def start_file_watcher(client, dir)
+    Thread.new do
+      listener = Listen.to(dir)
+      listener.change do |modified, added, removed|
+        modified.concat(added).each do |file|
+          relative = file[dir.length+1..-1]
+          upload_file dir, relative, client
+        end
+        removed.each do |file|
+          relative = file[dir.length+1..-1]
+          remove_file dir, relative, client
+        end
+      end
+      listener.latency(0.2)
+      listener.polling_fallback_message("")
+      listener.force_polling(true)
+      listener.start
+    end
+  end
+
+  def start_console_server(client, port)
+    Thread.new do
+      console_server = TCPServer.new(port)
+      loop do
+        Thread.start(console_server.accept) do |console_client|
+          client.run("cd /app/work; env HOME=/app/work bash") do |ch|
+            client.hookup ch, console_client
+            client.on_close(ch) { console_client.close }
+          end
+        end
+      end
+    end
   end
 
 end
