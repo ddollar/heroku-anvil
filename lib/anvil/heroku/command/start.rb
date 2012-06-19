@@ -1,3 +1,4 @@
+require "anvil/heroku/helpers/anvil"
 require "anvil/heroku/manifest"
 require "distributor/client"
 require "listen"
@@ -5,6 +6,8 @@ require "listen"
 # run your local code on heroku
 #
 class Heroku::Command::Start < Heroku::Command::Base
+
+  include Heroku::Helpers::Anvil
 
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1
@@ -75,7 +78,7 @@ class Heroku::Command::Start < Heroku::Command::Base
       end
 
       start_file_watcher   client, dir
-      start_console_server client, 13433
+      start_console_server client, dir
     end
 
     client.on_command do |command, data|
@@ -123,7 +126,7 @@ class Heroku::Command::Start < Heroku::Command::Base
   #
   def console
     connector = Distributor::Connector.new
-    console   = TCPSocket.new("localhost", 13433)
+    console   = TCPSocket.new("localhost", read_anvil_metadata(".", "console.port").to_i)
 
     set_buffer false
 
@@ -138,14 +141,16 @@ class Heroku::Command::Start < Heroku::Command::Base
     end
 
     connector.on_close(console) do
-      p [:console_closed]
+      exit 0
     end
 
     connector.on_close($stdin.dup) do |io|
-      p [:stdin_closed]
+      exit 0
     end
 
     loop { connector.listen }
+  rescue Errno::ECONNREFUSED
+    error "Unable to connect to development dyno"
   ensure
     set_buffer true
   end
@@ -207,7 +212,7 @@ private
   end
 
   def upload_file(dir, file, client)
-    return if ignore_file?(file)
+    return if ignore_file?(File.join(dir, file))
     manifest = Heroku::Manifest.new
     full_filename = File.join(dir, file)
     manifest.add full_filename
@@ -218,7 +223,7 @@ private
   end
 
   def remove_file(dir, file, client)
-    return if ignore_file?(file)
+    return if ignore_file?(File.join(dir, file))
     #@@development_log.puts "File removed: #{file}"
     client.command "file.delete", "name" => file
   end
@@ -250,12 +255,13 @@ private
     end
   end
 
-  def start_console_server(client, port)
+  def start_console_server(client, dir)
     Thread.new do
-      console_server = TCPServer.new(port)
+      console_server = TCPServer.new(0)
+      write_anvil_metadata dir, "console.port", console_server.addr[1]
       loop do
         Thread.start(console_server.accept) do |console_client|
-          client.run("cd /app/work; env HOME=/app/work bash") do |ch|
+          client.run("cd /app/work; env TERM=xterm HOME=/app/work bash") do |ch|
             client.hookup ch, console_client
             client.on_close(ch) { console_client.close }
           end

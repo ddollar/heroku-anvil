@@ -1,3 +1,4 @@
+require "anvil/heroku/helpers/anvil"
 require "anvil/heroku/manifest"
 require "cgi"
 require "digest/sha2"
@@ -9,6 +10,8 @@ require "tmpdir"
 # deploy code
 #
 class Heroku::Command::Build < Heroku::Command::Base
+
+  include Heroku::Helpers::Anvil
 
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1
@@ -115,22 +118,6 @@ private
     @status = nil
 
     manifest
-  end
-
-  def anvil_metadata_dir(root)
-    dir = File.join(root, ".anvil")
-    FileUtils.mkdir_p(dir)
-    dir
-  end
-
-  def read_anvil_metadata(root, name)
-    File.open(File.join(anvil_metadata_dir(root), name)).read.chomp rescue nil
-  end
-
-  def write_anvil_metadata(root, name, data)
-    File.open(File.join(anvil_metadata_dir(root), name), "w") do |file|
-      file.puts data
-    end
   end
 
 end
