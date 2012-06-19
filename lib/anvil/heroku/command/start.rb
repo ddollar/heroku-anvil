@@ -2,6 +2,7 @@ require "anvil/heroku/helpers/anvil"
 require "anvil/heroku/manifest"
 require "distributor/client"
 require "listen"
+require "pathname"
 
 # run your local code on heroku
 #
@@ -20,7 +21,7 @@ class Heroku::Command::Start < Heroku::Command::Base
   # -e, --runtime-env  # use the runtime env
   #
   def index
-    dir = File.realdirpath(File.expand_path(shift_argument || "."))
+    dir = Pathname.new(File.expand_path(shift_argument || ".")).realpath
     app = options[:app] || error("Must specify a development app with -a")
     validate_arguments!
 
