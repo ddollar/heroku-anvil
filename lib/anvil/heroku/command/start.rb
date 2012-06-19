@@ -21,7 +21,7 @@ class Heroku::Command::Start < Heroku::Command::Base
   # -e, --runtime-env  # use the runtime env
   #
   def index
-    dir = Pathname.new(File.expand_path(shift_argument || ".")).realpath
+    dir = Pathname.new(File.expand_path(shift_argument || ".")).realpath.to_s
     app = options[:app] || error("Must specify a development app with -a")
     validate_arguments!
 
