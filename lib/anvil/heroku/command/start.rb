@@ -231,6 +231,7 @@ private
   end
 
   def ignore_file?(file)
+    return true unless File.exists?(file)
     return true if File.stat(file).pipe?
     return true if file[-4..-1] == ".swp"
     return true if file[0..5] == ".anvil"
