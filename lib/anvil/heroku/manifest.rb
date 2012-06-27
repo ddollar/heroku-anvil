@@ -2,6 +2,7 @@ require "heroku"
 require "heroku/helpers"
 require "net/http"
 require "net/https"
+require "rest_client"
 
 class Heroku::Manifest
 
