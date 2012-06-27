@@ -74,7 +74,8 @@ class Heroku::Command::Start < Heroku::Command::Base
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
-      client.run("cd /app/work; foreman start -c") do |ch|
+      print "Preparing app for compilation... "
+      client.run("/app/bin/compile /app/work; cd /app/work; foreman start -c") do |ch|
         client.hookup ch, $stdin.dup, $stdout.dup
         client.on_close(ch) { shutdown(app, process["process"]) }
       end
