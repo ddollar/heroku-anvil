@@ -252,7 +252,7 @@ private
           remove_file dir, relative, client
         end
       end
-      listener.latency(0.2)
+      listener.latency(1.5)
       listener.polling_fallback_message("")
       listener.force_polling(true)
       listener.start
