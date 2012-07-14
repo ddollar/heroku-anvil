@@ -83,7 +83,7 @@ private
   end
 
   def anvil_host
-    ENV["ANVIL_HOST"] || "http://anvil.herokuapp.com"
+    ENV["ANVIL_HOST"] || "http://anvil-production.herokuapp.com"
   end
 
   def directory_manifest(dir)
