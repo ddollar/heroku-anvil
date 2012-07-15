@@ -20,7 +20,7 @@ class Heroku::Command::Build < Heroku::Command::Base
 
   # build [SOURCE]
   #
-  # deploy code
+  # build software on an anvil build server
   #
   # if SOURCE is a local directory, the contents of the directory will be built
   # if SOURCE is a git URL, the contents of the repo will be built

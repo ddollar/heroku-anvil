@@ -1,6 +1,6 @@
 # heroku-anvil
 
-CLI plugin for [anvil](https://github.com/ddollar/anvil)
+Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build server.
 
 ## Installation
 
@@ -8,60 +8,62 @@ CLI plugin for [anvil](https://github.com/ddollar/anvil)
 
 ## Usage
 
-#### Create a slug
+#### Build a local directory
 
-	$ heroku build
-	Generating app manifest... done
-	Uploading new files... done, 0 files needed
-	Launching build process... done
-	Recreating app from manifest... done
-	Fetching buildpack... done
-	Detecting buildpack... done, Buildkit+Node.js
-	Compiling app...
-	  Compiling for Node.js
-	  ...
-	Creating slug... done
-	Uploading slug... done
-	Success, slug is https://anvil-production.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
+    $ heroku build
 
-#### Create a slug and release it
+#### Build a local directory with a specific buildpack
+    $ heroku build -b nodejs
+    $ heroku build -b https://github.com/heroku/heroku-buildpack-nodejs.git#master
 
-	$ heroku build -r
-	Generating app manifest... done
-	Uploading new files... done, 0 files needed
-	Launching build process... done
-	Recreating app from manifest... done
-	Fetching buildpack... done
-	Detecting buildpack... done, Buildkit+Node.js
-	Compiling app...
-	  Compiling for Node.js
-	  ...
-	Creating slug... done
-	Uploading slug... done
-	Success, slug is https://anvil-production.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
-	Downloading slug... done
-	Releasing to anvil... done, v158
+#### Build a git repository
 
-#### Release an existing slug
+    $ heroku build https://github.com/ddollar/anvil.git
 
-	$ heroku release https://anvil-production.herokuapp.com/slugs/00000000-0000-0000-0000-000000000000.img
-	Downloading slug... done
-	Releasing to anvil... done, v158
+#### Use `-p` to create pipelines
+
+    $ slug=$(heroku build . -p) 2>/tmp/log/build.log
+    $ heroku release $slug
+
+#### Build a tarball using a shell script as a buildpack
+    $ heroku build \
+      http://memcached.googlecode.com/files/memcached-1.4.13.tar.gz \
+      -b https://raw.github.com/ddollar/vulcan-recipes/master/memcached.sh
+
+#### Release to Heroku after building
+
+    $ heroku build -r -a myapp
+    ...
+    Releasing to myapp... done, v42
+
+#### Release already-built software
+
+    $ heroku release $slug_url -a myapp
+    Releasing to myapp... done, v42
 
 ## Advanced Usage
 
-#### Build
+#### heroku build
 
-	Usage: heroku build [DIR]
+    $ heroku help build
+    Usage: heroku build [SOURCE]
 
-	 deploy code
+     build software on an anvil build server
 
-	 -b, --buildpack URL  # use a custom buildpack
-	 -e, --runtime-env    # use runtime environment during build
-	 -r, --release        # release the slug to an app
+     if SOURCE is a local directory, the contents of the directory will be built
+     if SOURCE is a git URL, the contents of the repo will be built
 
-#### Release
+     SOURCE will default to "."
 
-	Usage: heroku release SLUG_URL
+     -b, --buildpack URL  # use a custom buildpack
+     -e, --runtime-env    # use an app's runtime environment during build
+     -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
+     -r, --release        # release the slug to an app
 
-	  release a slug
+#### heroku release
+
+    Usage: heroku release SLUG_URL
+
+     release a slug
+
+     -p, --procfile PROCFILE  # use an alternate Procfile to define process types
