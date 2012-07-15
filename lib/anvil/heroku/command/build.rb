@@ -116,10 +116,17 @@ private
 
   def prepare_buildpack(buildpack_url)
     return nil unless buildpack_url
-    return buildpack_url unless File.exists?(buildpack_url) && File.directory?(buildpack_url)
 
-    manifest = sync_dir(buildpack_url, "buildpack")
-    manifest.save
+    if URI.parse(buildpack_url).scheme
+      return buildpack_url
+    elsif buildpack_url =~ /\A\w+\Z/
+      return "http://buildkits-dev.s3.amazonaws.com/buildpacks/#{buildpack_url}.tgz"
+    elsif File.exists?(buildpack_url) && File.directory?(buildpack_url)
+      manifest = sync_dir(buildpack_url, "buildpack")
+      manifest.save
+    else
+      error "unknown buildpack type: #{buildpack_url}"
+    end
   end
 
   def sync_dir(dir, name)

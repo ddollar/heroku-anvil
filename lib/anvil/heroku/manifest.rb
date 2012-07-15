@@ -54,8 +54,8 @@ class Heroku::Manifest
   end
 
   def save
-    id = json_decode(anvil["/manifest"].post(:manifest => self.to_json).to_s)["id"]
-    "#{anvil_host}/manifest/#{id}.json"
+    res = anvil["/manifest"].post(:manifest => self.to_json)
+    res.headers[:location]
   end
 
   def upload
