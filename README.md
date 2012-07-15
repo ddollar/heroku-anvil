@@ -26,9 +26,9 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
     $ heroku release $slug
 
 #### Build a tarball using a shell script as a buildpack
-    $ heroku build \
-      http://memcached.googlecode.com/files/memcached-1.4.13.tar.gz \
-      -b https://raw.github.com/ddollar/vulcan-recipes/master/memcached.sh
+
+    $ heroku build http://memcached.googlecode.com/files/memcached-1.4.13.tar.gz \
+                -b https://raw.github.com/ddollar/vulcan-recipes/master/memcached.sh
 
 #### Release to Heroku after building
 
