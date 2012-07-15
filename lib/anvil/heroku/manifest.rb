@@ -97,6 +97,7 @@ private
       next(hash) if File.directory?(file)
       next(hash) if File.pipe?(file)
       next(hash) if file =~ /\.git/
+      next(hash) if file =~ /\.swp$/
       hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
       hash
     end
