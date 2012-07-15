@@ -79,7 +79,7 @@ private
   end
 
   def anvil
-    @anvil ||= RestClient::Resource.new(anvil_host, auth.user, auth.password)
+    @anvil ||= RestClient::Resource.new(anvil_host)
   end
 
   def anvil_host
