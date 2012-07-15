@@ -1,4 +1,5 @@
 require "anvil/heroku/helpers/anvil"
+require "anvil/heroku/builder"
 require "anvil/heroku/manifest"
 require "cgi"
 require "digest/sha2"
@@ -6,6 +7,7 @@ require "heroku/command/base"
 require "net/https"
 require "pathname"
 require "tmpdir"
+require "uri"
 
 # deploy code
 #
@@ -16,12 +18,17 @@ class Heroku::Command::Build < Heroku::Command::Base
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1
 
-  # build [DIR]
+  # build [SOURCE]
   #
   # deploy code
   #
+  # if SOURCE is a local directory, the contents of the directory will be built
+  # if SOURCE is a git URL, the contents of the repo will be built
+  #
+  # SOURCE will default to "."
+  #
   # -b, --buildpack URL  # use a custom buildpack
-  # -e, --runtime-env    # use runtime environment during build
+  # -e, --runtime-env    # use an app's runtime environment during build
   # -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
   # -r, --release        # release the slug to an app
   #
@@ -31,32 +38,42 @@ class Heroku::Command::Build < Heroku::Command::Base
       $stdout = $stderr
     end
 
-    dir = File.expand_path(shift_argument || ".")
+    source = shift_argument || "."
     validate_arguments!
-
-    manifest = sync_dir(dir, "app")
 
     build_options = {
       :buildpack => prepare_buildpack(options[:buildpack]),
       :env       => options[:runtime_env] ? heroku.config_vars(app) : {}
     }
 
-    build_url = manifest.build(build_options) do |chunk|
-      print process_commands(chunk)
+    if URI.parse(source).scheme
+      slug_url = Heroku::Builder.new.build(source, build_options) do |chunk|
+        print process_commands(chunk)
+      end
+    else
+      dir      = File.expand_path(source)
+      manifest = sync_dir(dir, "app")
+
+      slug_url = manifest.build(build_options) do |chunk|
+        print process_commands(chunk)
+      end
+
+      write_anvil_metadata dir, "cache", manifest.cache_url
     end
 
-    write_anvil_metadata dir, "cache", manifest.cache_url
-
-    old_stdout.puts build_url if options[:pipeline]
+    old_stdout.puts slug_url if options[:pipeline]
 
     if options[:release]
       action("Releasing to #{app}") do
-        release = heroku.release(app, "Anvil deploy", :build_url => build_url)
-        status release["release"]
+        begin
+          release = heroku.release(app, "Anvil deploy", :build_url => slug_url)
+          status release["release"]
+        rescue RestClient::Forbidden => ex
+          error ex.http_body
+        end
       end
     end
   end
-
 
 private
 
