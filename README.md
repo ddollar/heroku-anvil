@@ -22,8 +22,7 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
 
 #### Use `-p` to create pipelines
 
-    $ slug=$(heroku build . -p) 2>/tmp/log/build.log
-    $ heroku release $slug
+    $ heroku release $(heroku build . -p 2>/tmp/log/build.log)
 
 #### Build a tarball using a shell script as a buildpack
 
