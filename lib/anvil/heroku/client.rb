@@ -32,7 +32,7 @@ class Heroku::Client
 private
 
   def release_host
-    ENV["RELEASE_HOST"] || "https://releases-test.herokuapp.com"
+    ENV["RELEASE_HOST"] || "https://releases-production.herokuapp.com"
   end
 
   def releaser
