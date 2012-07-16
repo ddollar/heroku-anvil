@@ -25,8 +25,13 @@ class Heroku::Builder
     http.request(req) do |res|
       slug_url = res["x-slug-url"]
 
-      res.read_body do |chunk|
-        yield chunk
+      begin
+        res.read_body do |chunk|
+          yield chunk
+        end
+      rescue EOFError
+        puts
+        error "compile terminated unexpectedly"
       end
     end
 
