@@ -6,7 +6,7 @@ class Heroku::Client
   #
   def release(app_name, description, options={})
     release_options = { :description => description }.merge(options)
-    json_decode(releaser["/apps/#{app_name}/release"].post(release_options))
+    json_decode(releases_api["/apps/#{app_name}/release"].post(release_options))
   end
 
   def routes(app_name)
@@ -29,14 +29,15 @@ class Heroku::Client
   def route_destroy(app_name, url)
     delete("/apps/#{app_name}/routes?url=#{URI.escape(url)}", {})
   end
+
 private
 
-  def release_host
-    ENV["RELEASE_HOST"] || "https://releases-production.herokuapp.com"
+  def releases_host
+    ENV["RELEASES_HOST"] || "https://releases-production.herokuapp.com"
   end
 
-  def releaser
-    RestClient::Resource.new(release_host, Heroku::Auth.user, Heroku::Auth.password)
+  def releases_api
+    RestClient::Resource.new(releases_host, Heroku::Auth.user, Heroku::Auth.password)
   end
 
 end
