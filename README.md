@@ -50,13 +50,13 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
 
 #### heroku build
 
-    $ heroku help build
     Usage: heroku build [SOURCE]
 
      build software on an anvil build server
 
      if SOURCE is a local directory, the contents of the directory will be built
      if SOURCE is a git URL, the contents of the repo will be built
+     if SOURCE is a tarball URL, the contents of the tarball will be built
 
      SOURCE will default to "."
 
