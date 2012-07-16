@@ -32,13 +32,19 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
 #### Release to Heroku after building
 
     $ heroku build -r -a myapp
-    ...
-    Releasing to myapp... done, v42
+    Building ...
+    Releasing to myapp.heroku.com... done, v42
 
 #### Release already-built software
 
     $ heroku release $slug_url -a myapp
-    Releasing to myapp... done, v42
+    Releasing to myapp.heroku.com... done, v42
+
+#### Release to another cloud
+
+    $ heroku cloud shadow
+    $ heroku release $slug_url -a myapp
+    Releasing to myapp.heroku-shadow.com... done, v42
 
 ## Advanced Usage
 
