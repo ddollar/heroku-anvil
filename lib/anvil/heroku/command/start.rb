@@ -45,7 +45,7 @@ class Heroku::Command::Start < Heroku::Command::Base
     end
 
     build_env = {
-      "ANVIL_HOST"    => "https://anvil-production.herokuapp.com",
+      "ANVIL_HOST"    => "https://api.anvilworks.org",
       "BUILDPACK_URL" => prepare_buildpack(options[:buildpack]),
       "HEROKU_LOG_TOKEN" => ENV["HEROKU_LOG_TOKEN"],
       "NODE_PATH"     => "lib",
