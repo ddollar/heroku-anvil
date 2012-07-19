@@ -1,6 +1,9 @@
 require "heroku"
+require "heroku/helpers"
 
 class Heroku::Builder
+
+  include Heroku::Helpers
 
   class BuildError < StandardError; end
 
