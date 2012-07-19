@@ -56,9 +56,14 @@ class Heroku::Manifest
         raise BuildError, "terminated unexpectedly"
       end
 
-      # raise BuildError, "unknown exit code" if res["x-exit-code"].nil?
-      # code = res["x-exit-code"].first.to_i
-      # raise BuildError, "exited #{code}" unless code.zero?
+      code = if res["x-exit-code"].nil?
+        manifest_id = res["x-manifest-id"].first
+        Integer(String.new(anvil["/exit/#{manifest_id}"].get.to_s))
+      else
+        res["x-exit-code"].first.to_i
+      end
+
+      raise Heroku::Builder::BuildError, "exited #{code}" unless code.zero?
     end
 
     slug_url
