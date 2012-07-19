@@ -37,7 +37,7 @@ class Heroku::Manifest
     req.set_form_data({
       "buildpack" => options[:buildpack],
       "cache"     => @cache_url,
-      "env"       => options[:env],
+      "env"       => json_encode(options[:env] || {}),
       "manifest"  => self.to_json
     })
 

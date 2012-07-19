@@ -18,7 +18,7 @@ class Heroku::Builder
     req.set_form_data({
       "buildpack" => options[:buildpack],
       "cache"     => options[:cache],
-      "env"       => options[:env] || {},
+      "env"       => json_encode(options[:env] || {}),
       "source"    => source
     })
 
