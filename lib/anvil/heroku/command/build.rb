@@ -74,6 +74,9 @@ class Heroku::Command::Build < Heroku::Command::Base
         end
       end
     end
+  rescue Heroku::Builder::BuildError => ex
+    puts "ERROR: Build failed, #{ex.message}"
+    exit 1
   end
 
 private

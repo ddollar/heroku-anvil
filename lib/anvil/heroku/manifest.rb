@@ -1,3 +1,4 @@
+require "anvil/heroku/builder"
 require "heroku"
 require "heroku/helpers"
 require "net/http"
@@ -45,9 +46,18 @@ class Heroku::Manifest
     http.request(req) do |res|
       slug_url = res["x-slug-url"]
       @cache_url = res["x-cache-url"]
-      res.read_body do |chunk|
-        yield chunk
+
+      begin
+        res.read_body do |chunk|
+          yield chunk
+        end
+      rescue EOFError
+        puts
+        raise BuildError, "terminated unexpectedly"
       end
+
+      code = (res["x-exit-code"] || 512).first.to_i
+      raise Heroku::Builder::BuildError, "exited #{code}" unless code.zero?
     end
 
     slug_url

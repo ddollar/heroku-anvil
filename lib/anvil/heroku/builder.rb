@@ -2,6 +2,8 @@ require "heroku"
 
 class Heroku::Builder
 
+  class BuildError < StandardError; end
+
   def build(source, options={})
     uri  = URI.parse("#{anvil_host}/build")
     http = Net::HTTP.new(uri.host, uri.port)
@@ -31,8 +33,11 @@ class Heroku::Builder
         end
       rescue EOFError
         puts
-        error "compile terminated unexpectedly"
+        raise BuildError, "terminated unexpectedly"
       end
+
+      code = res["x-exit-code"].first.to_i
+      raise BuildError, "exited #{code}" unless code.zero?
     end
 
     slug_url
