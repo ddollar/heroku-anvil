@@ -40,7 +40,7 @@ class Heroku::Builder
       end
 
       code = if res["x-exit-code"].nil?
-        manifest_id = res["x-manifest-id"].first
+        manifest_id = [res["x-manifest-id"]].flatten.first
         Integer(String.new(anvil["/exit/#{manifest_id}"].get.to_s))
       else
         res["x-exit-code"].first.to_i
