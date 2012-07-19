@@ -36,8 +36,9 @@ class Heroku::Builder
         raise BuildError, "terminated unexpectedly"
       end
 
-      code = res["x-exit-code"].first.to_i
-      raise BuildError, "exited #{code}" unless code.zero?
+      # raise BuildError, "unknown exit code" if res["x-exit-code"].nil?
+      # code = res["x-exit-code"].first.to_i
+      # raise BuildError, "exited #{code}" unless code.zero?
     end
 
     slug_url
