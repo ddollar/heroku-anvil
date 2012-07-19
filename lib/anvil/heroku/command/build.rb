@@ -15,9 +15,6 @@ class Heroku::Command::Build < Heroku::Command::Base
 
   include Heroku::Helpers::Anvil
 
-  PROTOCOL_COMMAND_HEADER = "\000\042\000"
-  PROTOCOL_COMMAND_EXIT   = 1
-
   # build [SOURCE]
   #
   # build software on an anvil build server
@@ -49,14 +46,14 @@ class Heroku::Command::Build < Heroku::Command::Base
 
     if URI.parse(source).scheme
       slug_url = Heroku::Builder.new.build(source, build_options) do |chunk|
-        print process_commands(chunk)
+        print chunk
       end
     else
       dir      = File.expand_path(source)
       manifest = sync_dir(dir, "app")
 
       slug_url = manifest.build(build_options) do |chunk|
-        print process_commands(chunk)
+        print chunk
       end
 
       write_anvil_metadata dir, "cache", manifest.cache_url
@@ -87,25 +84,6 @@ private
 
   def releaser
     RestClient::Resource.new("releases-test.herokuapp.com", auth.user, auth.password)
-  end
-
-  def process_commands(chunk)
-    if location = chunk.index(PROTOCOL_COMMAND_HEADER)
-      buffer = StringIO.new(chunk[location..-1])
-      header = buffer.read(3)
-      case command = buffer.read(1)[0].ord
-      when PROTOCOL_COMMAND_EXIT then
-        code = buffer.read(1)[0].ord
-        unless code.zero?
-          puts "ERROR: Build exited with code: #{code}"
-          exit code
-        end
-      else
-        puts "unknown[#{command}]"
-      end
-      chunk = chunk[0,location] + buffer.read
-    end
-    chunk
   end
 
   def parse_procfile(filename)
