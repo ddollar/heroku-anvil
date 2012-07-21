@@ -53,7 +53,7 @@ class Heroku::Manifest
         end
       rescue EOFError
         puts
-        raise BuildError, "terminated unexpectedly"
+        raise Heroku::Builder::BuildError, "terminated unexpectedly"
       end
 
       code = if res["x-exit-code"].nil?
