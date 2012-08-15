@@ -9,13 +9,13 @@ class Heroku::Command::Release < Heroku::Command::Base
   # -p, --procfile PROCFILE  # use an alternate Procfile to define process types
   #
   def index
-    error("Usage: heroku release SLUG_URL") unless build_url = shift_argument
+    error("Usage: heroku release SLUG_URL") unless slug_url = shift_argument
     validate_arguments!
 
     action("Releasing to #{app}.#{heroku.host}") do
       release_options = {
-        :build_url => build_url,
-        :cloud     => heroku.host
+        :slug_url => slug_url,
+        :cloud    => heroku.host
       }
 
       if options[:procfile] then

@@ -41,7 +41,7 @@ class Heroku::Command::Start < Heroku::Command::Base
     }
 
     action("Preparing development dyno on #{app}") do
-      heroku.release(app, "Deployed base components", :build_url => anvil_slug_url)
+      heroku.release(app, "Deployed base components", :slug_url => anvil_slug_url)
     end
 
     build_env = {

@@ -64,7 +64,7 @@ class Heroku::Command::Build < Heroku::Command::Base
     if options[:release]
       action("Releasing to #{app}") do
         begin
-          release = heroku.release(app, "Anvil deploy", :build_url => slug_url, :cloud => heroku.host)
+          release = heroku.release(app, "Anvil deploy", :slug_url=> slug_url, :cloud => heroku.host)
           status release["release"]
         rescue RestClient::Forbidden => ex
           error ex.http_body
