@@ -1,5 +1,5 @@
-require "anvil/heroku/helpers/anvil"
-require "anvil/heroku/manifest"
+# require "anvil/heroku/helpers/anvil"
+# require "anvil/heroku/manifest"
 require "distributor/client"
 require "listen"
 require "pathname"
@@ -8,7 +8,7 @@ require "pathname"
 #
 class Heroku::Command::Start < Heroku::Command::Base
 
-  include Heroku::Helpers::Anvil
+  # include Heroku::Helpers::Anvil
 
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1

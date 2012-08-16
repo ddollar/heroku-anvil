@@ -1,6 +1,5 @@
-require "anvil/heroku/helpers/anvil"
-require "anvil/heroku/builder"
-require "anvil/heroku/manifest"
+require "anvil/builder"
+require "anvil/manifest"
 require "cgi"
 require "digest/sha2"
 require "heroku/command/base"
@@ -13,8 +12,6 @@ require "uri"
 #
 class Heroku::Command::Build < Heroku::Command::Base
 
-  include Heroku::Helpers::Anvil
-
   # build [SOURCE]
   #
   # build software on an anvil build server
@@ -26,11 +23,15 @@ class Heroku::Command::Build < Heroku::Command::Base
   # SOURCE will default to "."
   #
   # -b, --buildpack URL  # use a custom buildpack
-  # -e, --runtime-env    # use an app's runtime environment during build
   # -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
-  # -r, --release        # release the slug to an app
+  # -r, --release [APP]  # release the slug to an app (defaults to current app detected from git)
   #
   def index
+    # let app name be specified with -r, and trigger app name warning
+    # if no app specified
+    options[:app] ||= options[:release]
+    app_to_build = app if options.has_key?(:release)
+
     if options[:pipeline]
       old_stdout = $stdout.dup
       $stdout = $stderr
@@ -40,90 +41,62 @@ class Heroku::Command::Build < Heroku::Command::Base
     validate_arguments!
 
     build_options = {
-      :buildpack => prepare_buildpack(options[:buildpack]),
-      :env       => options[:runtime_env] ? heroku.config_vars(app) : {}
+      :buildpack => prepare_buildpack(options[:buildpack].to_s)
     }
 
-    if URI.parse(source).scheme
-      slug_url = Heroku::Builder.new.build(source, build_options) do |chunk|
-        print chunk
-      end
+    builder = if is_url?(source)
+      Anvil::Builder.new(source)
     else
-      dir      = File.expand_path(source)
-      manifest = sync_dir(dir, "app")
+      manifest = Anvil::Manifest.new(File.expand_path(source))
+      print "Uploading app... "
+      count = manifest.upload
+      puts "done, #{count} files uploaded"
+      manifest
+    end
 
-      slug_url = manifest.build(build_options) do |chunk|
-        print chunk
-      end
-
-      write_anvil_metadata dir, "cache", manifest.cache_url
+    slug_url = builder.build(build_options) do |chunk|
+      print chunk
     end
 
     old_stdout.puts slug_url if options[:pipeline]
 
-    if options[:release]
+    if options.has_key?(:release)
       action("Releasing to #{app}") do
         begin
-          release = heroku.release(app, "Anvil deploy", :slug_url=> slug_url, :cloud => heroku.host)
+          release = heroku.release(app, "Anvil deploy", :slug_url => slug_url, :cloud => heroku.host)
           status release["release"]
         rescue RestClient::Forbidden => ex
           error ex.http_body
         end
       end
     end
-  rescue Heroku::Builder::BuildError => ex
+  rescue Anvil::Builder::BuildError => ex
     puts "ERROR: Build failed, #{ex.message}"
     exit 1
   end
 
 private
 
-  def auth
-    Heroku::Auth
+  def is_url?(string)
+    URI.parse(string).scheme rescue nil
   end
 
-  def releaser
-    RestClient::Resource.new("releases-test.herokuapp.com", auth.user, auth.password)
-  end
-
-  def parse_procfile(filename)
-    return {} unless File.exists?(filename)
-    File.read(filename).split("\n").inject({}) do |ax, line|
-      if line =~ /^([A-Za-z0-9_]+):\s*(.+)$/
-        ax[$1] = $2
-      end
-      ax
-    end
-  end
-
-  def prepare_buildpack(buildpack_url)
-    return nil unless buildpack_url
-
-    if URI.parse(buildpack_url).scheme
-      return buildpack_url
-    elsif buildpack_url =~ /\A\w+\Z/
-      return "http://buildkits-dev.s3.amazonaws.com/buildpacks/#{buildpack_url}.tgz"
-    elsif File.exists?(buildpack_url) && File.directory?(buildpack_url)
-      manifest = sync_dir(buildpack_url, "buildpack")
+  def prepare_buildpack(buildpack)
+    if buildpack == ""
+      buildpack
+    elsif is_url?(buildpack)
+      buildpack
+    elsif buildpack =~ /\A\w+\/\w+\Z/
+      "http://buildkits-dev.s3.amazonaws.com/buildpacks/#{buildpack}.tgz"
+    elsif File.exists?(buildpack) && File.directory?(buildpack)
+      print "Uploading buildpack... "
+      manifest = Anvil::Manifest.new(buildpack)
+      manifest.upload
       manifest.save
+      puts "done"
     else
-      error "unknown buildpack type: #{buildpack_url}"
+      error "unrecognized buildpack specification: #{buildpack}"
     end
-  end
-
-  def sync_dir(dir, name)
-    manifest = action("Generating #{name} manifest") do
-      cache = read_anvil_metadata(dir, "cache")
-      Heroku::Manifest.new(dir, cache)
-    end
-
-    action("Uploading new files") do
-      count = manifest.upload
-      @status = "#{count} files needed"
-    end
-    @status = nil
-
-    manifest
   end
 
 end
