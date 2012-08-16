@@ -8,8 +8,8 @@ The Listen gem listens to file modifications and notifies you about the changes.
 * Supports watching multiple directories from a single listener.
 * OS-specific adapters for Mac OS X 10.6+, Linux and Windows.
 * Automatic fallback to polling if OS-specific adapter doesn't work.
-* Detects files modification, addidation and removal.
-* Checksum comparaison for modifications made under the same second.
+* Detects file modification, addition and removal.
+* Checksum comparison for modifications made under the same second.
 * Allows supplying regexp-patterns to ignore and filter paths for better results.
 * Tested on all Ruby environments via [travis-ci](http://travis-ci.org/guard/listen).
 
@@ -191,7 +191,7 @@ These options can be set through `Listen.to` params or via methods (see the "Obj
                                                # default: See DEFAULT_IGNORED_DIRECTORIES and DEFAULT_IGNORED_EXTENSIONS in Listen::DirectoryRecord
 
 :latency => 0.5                                # Set the delay (**in seconds**) between checking for changes
-                                               # default: 0.1 sec (1.0 sec for polling)
+                                               # default: 0.25 sec (1.0 sec for polling)
 
 :relative_paths => true                        # Enable the use of relative paths in the callback.
                                                # default: false

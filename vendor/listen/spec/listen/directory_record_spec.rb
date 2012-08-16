@@ -1086,5 +1086,53 @@ describe Listen::DirectoryRecord do
         end
       end
     end
+
+    context 'within a directory containing a removed file - #39' do
+      it 'does not raise an exception when hashing a removed file' do
+
+        # simulate a race condition where the file is removed after the
+        # change event is tracked, but before the hash is calculated
+        Digest::SHA1.should_receive(:file).and_raise(Errno::ENOENT)
+
+        lambda {
+          fixtures do |path|
+            file = 'removed_file.txt'
+            touch file
+            changes(path) { touch file }
+          end
+        }.should_not raise_error(Errno::ENOENT)
+      end
+    end
+
+    context 'with symlinks' do
+      it 'looks at symlinks not their targets' do
+        fixtures do |path|
+          touch 'target'
+          symlink 'target', 'symlink'
+
+          record = described_class.new(path)
+          record.build
+
+          sleep 1
+          touch 'target'
+
+          record.fetch_changes([path], :relative_paths => true)[:modified].should == ['target']
+        end
+      end
+
+      it 'handles broken symlinks' do
+        fixtures do |path|
+          symlink 'target', 'symlink'
+
+          record = described_class.new(path)
+          record.build
+
+          sleep 1
+          rm 'symlink'
+          symlink 'new-target', 'symlink'
+          record.fetch_changes([path], :relative_paths => true)
+        end
+      end
+    end
   end
 end
