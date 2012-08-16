@@ -1,6 +1,6 @@
 # heroku-anvil
 
-Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build server.
+Alternate Heroku build process.
 
 ## Installation
 
@@ -8,43 +8,52 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
 
 ## Usage
 
-#### Build a local directory
+#### Compile an application from a local directory and release it to Heroku
 
-    $ heroku build
+    $ heroku build -r myapp
+    Building ...
+    Success, slug is https://api.anvilworks.org/slugs/000.tgz
+    Releasing to myapp.heroku.com... done, v42
 
-#### Build a local directory with a specific buildpack
-    $ heroku build -b nodejs
-    $ heroku build -b https://github.com/heroku/heroku-buildpack-nodejs.git#master
+#### Release a slug to another app
 
-#### Build a git repository
+    $ heroku release https://api.anvilworks.org/slugs/000.tgz -a myapp-staging
+    Releasing to myapp-staging.heroku.com... done, v42
+    
+#### Alternatively, you can build from a public-accessible git repository
 
     $ heroku build https://github.com/ddollar/anvil.git
+    
+#### You can also specify a buildpack
 
-#### Use `-p` to create pipelines
+    # specify a buildpack url
+    $ heroku build https://github.com/ddollar/anvil.git -b https://github.com/heroku/heroku-buildpack-nodejs.git
+    
+    # specify a buildpack from https://buildkits.heroku.com/
+    $ heroku build https://github.com/ddollar/anvil.git -b heroku/nodejs
+    
+#### Use the pipelining feature to build complex deploy workflows
 
-    $ heroku release $(heroku build . -p 2>/tmp/log/build.log)
+    #!/usr/bin/env bash
+    
+    # fail fast
+    set -o errexit
+    set -o pipefail
+    
+    # compile a slug of the app
+    slug=$(heroku build https://github.com/my/project.git -p)
 
-#### Build a tarball using a shell script as a buildpack
-
-    $ heroku build http://memcached.googlecode.com/files/memcached-1.4.13.tar.gz \
-                -b https://raw.github.com/ddollar/vulcan-recipes/master/memcached.sh
-
-#### Release to Heroku after building
-
-    $ heroku build -r -a myapp
-    Building ...
-    Releasing to myapp.heroku.com... done, v42
-
-#### Release already-built software
-
-    $ heroku release $slug_url -a myapp
-    Releasing to myapp.heroku.com... done, v42
-
-#### Release to another cloud
-
-    $ heroku cloud shadow
-    $ heroku release $slug_url -a myapp
-    Releasing to myapp.heroku-shadow.com... done, v42
+    # release the slug to staging
+    heroku release $slug -a myapp-staging
+    
+    # run tests using `heroku run`
+    heroku run bin/tests -a myapp-staging
+    
+    # test that the app responds via http
+    curl https://myapp-staging.herokuapp.com/test
+    
+    # release to production
+    heroku release $slug -a myapp-production
 
 ## Advanced Usage
 
@@ -61,7 +70,6 @@ Heroku CLI integration with an [Anvil](https://github.com/ddollar/anvil) build s
      SOURCE will default to "."
 
      -b, --buildpack URL  # use a custom buildpack
-     -e, --runtime-env    # use an app's runtime environment during build
      -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
      -r, --release        # release the slug to an app
 
