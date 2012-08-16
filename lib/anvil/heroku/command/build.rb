@@ -29,7 +29,7 @@ class Heroku::Command::Build < Heroku::Command::Base
   def index
     # let app name be specified with -r, and trigger app name warning
     # if no app specified
-    options[:app] ||= options[:release]
+    @app = options[:release] if options[:release]
     app_to_build = app if options.has_key?(:release)
 
     if options[:pipeline]
