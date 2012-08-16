@@ -11,8 +11,8 @@ class Anvil::CLI < Thor
 
   desc "build [SOURCE]", "Build an application"
 
-  method_option :buildpack, :type => :string, :aliases => "-b", :desc => "Use a specific buildpack"
-  method_option :pipeline, :type => :boolean, :aliases => "-p", :desc => "Pipe compile output to stderr and put the slug url on stdout"
+  method_option :buildpack, :type => :string,  :aliases => "-b", :desc => "Use a specific buildpack"
+  method_option :pipeline,  :type => :boolean, :aliases => "-p", :desc => "Pipe compile output to stderr and put the slug url on stdout"
 
   def build(source=nil)
     if options[:pipeline]

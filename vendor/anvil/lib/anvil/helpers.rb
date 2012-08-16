@@ -1,14 +1,14 @@
 require "anvil"
-require "json"
+require "anvil/okjson"
 
 module Anvil::Helpers
 
   def json_encode(obj)
-    JSON.dump(obj)
+    Anvil::OkJson.encode(obj)
   end
 
   def json_decode(str)
-    JSON.load(str)
+    Anvil::OkJson.decode(str)
   end
 
   def anvil_metadata_dir(root)

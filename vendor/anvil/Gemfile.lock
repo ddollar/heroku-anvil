@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    anvil-cli (0.0.5)
+    anvil-cli (0.0.6)
       rest-client (~> 1.6.7)
       thor (~> 0.15.2)
 

@@ -1,6 +1,5 @@
 require "anvil/builder"
 require "anvil/helpers"
-require "json"
 require "net/http"
 require "net/https"
 require "pathname"
