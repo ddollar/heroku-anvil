@@ -2,6 +2,7 @@ desc "Revendor"
 task :revendor do
   FileUtils.rm_rf File.join(root, "vendor")
 
+  vendor "anvil",       "https://github.com/ddollar/anvil-cli.git"
   vendor "distributor", "https://github.com/ddollar/distributor.git"
   vendor "listen",      "https://github.com/guard/listen.git"
 end
