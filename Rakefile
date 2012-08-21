@@ -5,6 +5,7 @@ task :revendor do
   vendor "anvil",       "https://github.com/ddollar/anvil-cli.git"
   vendor "distributor", "https://github.com/ddollar/distributor.git"
   vendor "listen",      "https://github.com/guard/listen.git"
+  vendor "progress",    "https://github.com/toy/progress.git"
 end
 
 def root
