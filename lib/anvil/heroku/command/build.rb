@@ -5,6 +5,7 @@ require "digest/sha2"
 require "heroku/command/base"
 require "net/https"
 require "pathname"
+require "progress"
 require "tmpdir"
 require "uri"
 
@@ -48,9 +49,18 @@ class Heroku::Command::Build < Heroku::Command::Base
       Anvil::Builder.new(source)
     else
       manifest = Anvil::Manifest.new(File.expand_path(source))
-      print "Uploading app... "
-      count = manifest.upload
-      puts "done, #{count} files uploaded"
+      print "Checking for files to sync... "
+      missing = manifest.missing
+      puts "done, #{missing.length} files needed"
+
+      if missing.length > 0
+        Progress.start("Uploading", missing.map { |hash, file| file["size"].to_i }.inject(&:+))
+        manifest.upload(missing.keys) do |file|
+          Progress.step file["size"].to_i
+        end
+        puts "Uploading, done                                    "
+      end
+
       manifest
     end
 
