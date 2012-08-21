@@ -2,6 +2,7 @@ require "anvil"
 require "anvil/builder"
 require "anvil/manifest"
 require "anvil/version"
+require "progress"
 require "thor"
 require "uri"
 
@@ -30,9 +31,18 @@ class Anvil::CLI < Thor
       Anvil::Builder.new(source)
     else
       manifest = Anvil::Manifest.new(File.expand_path(source))
-      print "Uploading app... "
-      count = manifest.upload
-      puts "done, #{count} files uploaded"
+      print "Checking for files to sync... "
+      missing = manifest.missing
+      puts "done, #{missing.length} files needed"
+
+      if missing.length > 0
+        Progress.start("Uploading", missing.map { |hash, file| file["size"].to_i }.inject(&:+))
+        manifest.upload(missing.keys) do |file|
+          Progress.step file["size"].to_i
+        end
+        puts "Uploading, done                                    "
+      end
+
       manifest
     end
 
@@ -41,6 +51,8 @@ class Anvil::CLI < Thor
     end
 
     old_stdout.puts slug_url if options[:pipeline]
+  rescue Anvil::Builder::BuildError => ex
+    error "Build Error: #{ex.message}"
   end
 
   desc "version", "Display Anvil version"

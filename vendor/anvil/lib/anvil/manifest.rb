@@ -74,9 +74,21 @@ class Anvil::Manifest
     res.headers[:location]
   end
 
-  def upload
-    missing = json_decode(anvil["/manifest/diff"].post(:manifest => self.to_json).to_s)
-    upload_hashes missing
+  def manifest_by_hash(manifest)
+    manifest.inject({}) do |ax, (name, file)|
+      ax.update file["hash"] => file.merge("name" => name)
+    end
+  end
+
+  def missing
+    mbh = manifest_by_hash(@manifest)
+    json_decode(anvil["/manifest/diff"].post(:manifest => self.to_json).to_s).inject({}) do |ax, hash|
+      ax.update hash => mbh[hash]
+    end
+  end
+
+  def upload(missing, &blk)
+    upload_hashes missing, &blk
     missing.length
   end
 
@@ -107,6 +119,7 @@ private
       next(hash) if File.pipe?(file)
       next(hash) if file =~ /\.git/
       next(hash) if file =~ /\.swp$/
+      next(hash) unless file =~ /^[A-Za-z0-9\-\_\.\/]*$/
       hash[Pathname.new(file).relative_path_from(root).to_s] = file_manifest(file)
       hash
     end
@@ -117,6 +130,7 @@ private
     manifest = {
       "mtime" => stat.mtime.to_i,
       "mode"  => "%o" % stat.mode,
+      "size"  => stat.size.to_s
     }
     if File.symlink?(file)
       manifest["link"] = File.readlink(file)
@@ -138,7 +152,8 @@ private
     error "error uploading #{filename}: #{ex.http_body}"
   end
 
-  def upload_hashes(hashes)
+  def upload_hashes(hashes, &blk)
+    mbh = manifest_by_hash(@manifest)
     filenames_by_hash = @manifest.inject({}) do |ax, (name, file_manifest)|
       ax.update file_manifest["hash"] => File.join(@dir.to_s, name)
     end
@@ -152,6 +167,7 @@ private
       Thread.new do
         hashes.each do |hash|
           upload_file filenames_by_hash[hash], hash
+          blk.call mbh[hash]
         end
       end
     end
