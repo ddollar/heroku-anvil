@@ -58,7 +58,7 @@ class Heroku::Command::Build < Heroku::Command::Base
         manifest.upload(missing.keys) do |file|
           Progress.step file["size"].to_i
         end
-        puts "Uploading, done                                    "
+        puts "Uploading... done                                    "
       end
 
       manifest
