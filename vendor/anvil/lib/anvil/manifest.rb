@@ -87,7 +87,7 @@ class Anvil::Manifest
     end
   end
 
-  def upload(missing, &blk)
+  def upload(hashes=missing, &blk)
     upload_hashes missing, &blk
     missing.length
   end
