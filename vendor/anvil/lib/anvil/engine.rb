@@ -57,7 +57,7 @@ class Anvil::Engine
       upload_missing manifest, "buildpack"
       manifest.save
     else
-      error "unrecognized buildpack specification: #{buildpack}"
+      raise Anvil::Builder::BuildError.new("unrecognized buildpack specification: #{buildpack}")
     end
   end
 
@@ -78,7 +78,8 @@ class Anvil::Engine
           when :step then Progress.step msg.last.to_i
         end
       end
-      puts "Uploading... done                                    "
+      Progress.stop
+      puts "Uploading... done"
     end
 
     if missing.length > 0
