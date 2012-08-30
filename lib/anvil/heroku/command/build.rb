@@ -1,5 +1,4 @@
-require "anvil/builder"
-require "anvil/manifest"
+require "anvil/engine"
 require "cgi"
 require "digest/sha2"
 require "heroku/command/base"
@@ -33,42 +32,12 @@ class Heroku::Command::Build < Heroku::Command::Base
     @app = options[:release] if options[:release]
     app_to_build = app if options.has_key?(:release)
 
-    if options[:pipeline]
-      old_stdout = $stdout.dup
-      $stdout = $stderr
-    end
-
     source = shift_argument || "."
     validate_arguments!
 
-    build_options = {
-      :buildpack => prepare_buildpack(options[:buildpack].to_s)
-    }
-
-    builder = if is_url?(source)
-      Anvil::Builder.new(source)
-    else
-      manifest = Anvil::Manifest.new(File.expand_path(source))
-      print "Checking for files to sync... "
-      missing = manifest.missing
-      puts "done, #{missing.length} files needed"
-
-      if missing.length > 0
-        Progress.start("Uploading", missing.map { |hash, file| file["size"].to_i }.inject(&:+))
-        manifest.upload(missing.keys) do |file|
-          Progress.step file["size"].to_i
-        end
-        puts "Uploading... done                                    "
-      end
-
-      manifest
-    end
-
-    slug_url = builder.build(build_options) do |chunk|
-      print chunk
-    end
-
-    old_stdout.puts slug_url if options[:pipeline]
+    slug_url = Anvil::Engine.build source,
+      :buildpack => options[:buildpack],
+      :pipeline  => options[:pipeline]
 
     if options.has_key?(:release)
       action("Releasing to #{app}") do
