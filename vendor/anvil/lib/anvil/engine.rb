@@ -79,7 +79,6 @@ class Anvil::Engine
         end
       end
       Progress.stop
-      puts "Uploading... done"
     end
 
     if missing.length > 0
