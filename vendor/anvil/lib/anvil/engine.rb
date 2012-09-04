@@ -62,7 +62,7 @@ class Anvil::Engine
   end
 
   def self.upload_missing(manifest, title="app")
-    print "Checking for files to sync for #{title}... "
+    print "Checking for #{title} files to sync... "
     missing = manifest.missing
     puts "done, #{missing.length} files needed"
 
