@@ -35,6 +35,10 @@ class Heroku::Command::Build < Heroku::Command::Base
     source = shift_argument || "."
     validate_arguments!
 
+    user = api.post_login("", Heroku::Auth.password).body["email"]
+
+    Anvil.append_agent "interface=build user=#{user} app=#{app}"
+
     slug_url = Anvil::Engine.build source,
       :buildpack => options[:buildpack],
       :pipeline  => options[:pipeline]
