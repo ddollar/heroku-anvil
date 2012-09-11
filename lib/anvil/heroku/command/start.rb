@@ -1,5 +1,5 @@
-# require "anvil/heroku/helpers/anvil"
-# require "anvil/heroku/manifest"
+require "anvil/helpers"
+require "anvil/manifest"
 require "distributor/client"
 require "listen"
 require "pathname"
@@ -8,7 +8,7 @@ require "pathname"
 #
 class Heroku::Command::Start < Heroku::Command::Base
 
-  # include Heroku::Helpers::Anvil
+  include Anvil::Helpers
 
   PROTOCOL_COMMAND_HEADER = "\000\042\000"
   PROTOCOL_COMMAND_EXIT   = 1
@@ -32,24 +32,20 @@ class Heroku::Command::Start < Heroku::Command::Base
       route
     end
 
-    app_manifest = upload_manifest("application", dir)
-    manifest_url = app_manifest.save
+    user = api.post_login("", Heroku::Auth.password).body["email"]
 
-    build_options = {
-      :buildpack => prepare_buildpack(options[:buildpack]),
-      :env       => options[:runtime_env] ? heroku.config_vars(app) : {}
-    }
+    Anvil.append_agent "interface=start user=#{user} app=#{app}"
+
+    slug_url = Anvil::Engine.build(dir, :buildpack => options[:buildpack])
 
     action("Preparing development dyno on #{app}") do
-      heroku.release(app, "Deployed base components", :slug_url => anvil_slug_url)
+      heroku.release(app, "Initial development dyno sync", :slug_url => development_dyno_slug_url)
     end
 
     build_env = {
-      "ANVIL_HOST"    => "https://api.anvilworks.org",
+      "ANVIL_HOST"    => ENV["ANVIL_HOST"] || "https://api.anvilworks.org",
       "BUILDPACK_URL" => prepare_buildpack(options[:buildpack]),
-      "HEROKU_LOG_TOKEN" => ENV["HEROKU_LOG_TOKEN"],
-      "NODE_PATH"     => "lib",
-      "PATH"          => "/app/work/bin:/app/work/node_modules/.bin:/app/vendor/bundle/ruby/1.9.1/bin:/app/bin:/app/node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
+      "SLUG_URL"      => slug_url
     }
 
     develop_options = build_env.inject({}) do |ax, (key, val)|
@@ -58,7 +54,7 @@ class Heroku::Command::Start < Heroku::Command::Base
 
     process = action("Starting development dyno") do
       status route["url"].gsub("tcp", "http")
-      run_attached app, "bin/develop #{manifest_url}", develop_options
+      run_attached app, "bin/development-dyno", develop_options
     end
     @status=nil
 
@@ -74,8 +70,7 @@ class Heroku::Command::Start < Heroku::Command::Base
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
-      print "Preparing app for compilation... "
-      client.run("/app/bin/compile /app/work; cd /app/work; foreman start -c") do |ch|
+      client.run("/app/vendor/bundle/ruby/1.9.1/bin/foreman start -c") do |ch|
         client.hookup ch, $stdin.dup, $stdout.dup
         client.on_close(ch) { shutdown(app, process["process"]) }
       end
@@ -88,6 +83,8 @@ class Heroku::Command::Start < Heroku::Command::Base
       case command
       when /file.*/
         #@@development_log.puts "Sync complete: #{data["name"]}"
+      when "error"
+        error data["message"]
       end
     end
 
@@ -160,8 +157,8 @@ class Heroku::Command::Start < Heroku::Command::Base
 
 private
 
-  def anvil_slug_url
-    ENV["ANVIL_SLUG_URL"] || "http://anvil-datastore.s3.amazonaws.com/software/production/anvil.img"
+  def development_dyno_slug_url
+    ENV["DEVELOPMENT_DYNO_SLUG_URL"] || "https://api.anvilworks.org/slugs/9ebbeaa1-fbea-11e1-b6df-d7646c5e1c76.tgz"
   end
 
   def run_attached(app, command, options={})
@@ -216,11 +213,11 @@ private
 
   def upload_file(dir, file, client)
     return if ignore_file?(File.join(dir, file))
-    manifest = Heroku::Manifest.new
+    manifest = Anvil::Manifest.new
     full_filename = File.join(dir, file)
     manifest.add full_filename
     #@@development_log.puts "File changed: #{file}"
-    manifest.upload
+    manifest.upload manifest.missing
     hash = manifest.manifest[full_filename]["hash"]
     client.command "file.download", "name" => file, "hash" => hash
   end
@@ -234,8 +231,8 @@ private
   def ignore_file?(file)
     return true unless File.exists?(file)
     return true if File.stat(file).pipe?
-    return true if file[-4..-1] == ".swp"
-    return true if file[0..5] == ".anvil"
+    return true if file =~ /\.swp/
+    return true if file =~ /\.anvil/
     false
   end
 
@@ -265,7 +262,7 @@ private
       write_anvil_metadata dir, "console.port", console_server.addr[1]
       loop do
         Thread.start(console_server.accept) do |console_client|
-          client.run("cd /app/work; env TERM=xterm HOME=/app/work bash") do |ch|
+          client.run("env TERM=xterm bash") do |ch|
             client.hookup ch, console_client
             client.on_close(ch) { console_client.close }
           end
