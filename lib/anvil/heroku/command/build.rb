@@ -37,7 +37,8 @@ class Heroku::Command::Build < Heroku::Command::Base
 
     user = api.post_login("", Heroku::Auth.password).body["email"]
 
-    Anvil.append_agent "interface=build user=#{user} app=#{app rescue nil}"
+    Anvil.headers["X-Heroku-User"] = user
+    Anvil.headers["X-Heroku-App"]  = (app rescue nil)
 
     slug_url = Anvil::Engine.build source,
       :buildpack => options[:buildpack],
