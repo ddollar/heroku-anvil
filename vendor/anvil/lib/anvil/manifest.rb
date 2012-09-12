@@ -38,6 +38,10 @@ class Anvil::Manifest
     req.initialize_http_header "User-Agent" => Anvil.agent
     req["User-Agent"] = Anvil.agent
 
+    Anvil.headers.each do |name, val|
+      req[name] = val
+    end
+
     req.set_form_data({
       "buildpack" => options[:buildpack],
       "cache"     => @cache_url,
