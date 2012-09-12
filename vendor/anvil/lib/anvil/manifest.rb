@@ -39,7 +39,8 @@ class Anvil::Manifest
     req["User-Agent"] = Anvil.agent
 
     Anvil.headers.each do |name, val|
-      req[name] = val
+      next if name.to_s.strip == ""
+      req[name] = val.to_s
     end
 
     req.set_form_data({
