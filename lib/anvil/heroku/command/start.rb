@@ -158,7 +158,7 @@ class Heroku::Command::Start < Heroku::Command::Base
 private
 
   def development_dyno_slug_url
-    ENV["DEVELOPMENT_DYNO_SLUG_URL"] || "https://api.anvilworks.org/slugs/9ebbeaa1-fbea-11e1-b6df-d7646c5e1c76.tgz"
+    ENV["DEVELOPMENT_DYNO_SLUG_URL"] || "https://api.anvilworks.org/slugs/889a67b1-fc71-11e1-97c4-e57ab9695538.tgz"
   end
 
   def run_attached(app, command, options={})
