@@ -44,8 +44,13 @@ else
     client.run("bash 2>&1") do |ch|
       client.hookup ch, $stdin.dup, $stdout.dup
       client.on_close(ch) do
+        p [:closing]
         exit 0
       end
+    end
+
+    client.run("ls -la") do |ch|
+      client.on_close(ch) { puts "ls closed" }
     end
 
     # echo commands to stdout
@@ -68,6 +73,24 @@ else
           # create a tunnel to localhost:5000 on the server
           client.tunnel(5000) do |ch|
             client.hookup ch, tcp_client
+          end
+
+        end
+      end
+    end
+
+    # create a unix socket to proxy through
+    unix = UNIXServer.new("/tmp/client.sock")
+
+    Thread.new do
+      loop do
+
+        # every time a connection comes to localhost:8000 on the client
+        Thread.start(unix.accept) do |unix_client|
+
+          # create a tunnel to localhost:5000 on the server
+          client.tunnel(5000) do |ch|
+            client.hookup ch, unix_client
           end
 
         end

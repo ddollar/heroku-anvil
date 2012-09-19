@@ -68,6 +68,11 @@ class Distributor::Client
     @handlers[id] = handler
   end
 
+  def socket(path, &handler)
+    id = command("socket", "path" => path)
+    @handlers[id] = handler
+  end
+
   def tunnel(port, &handler)
     id = command("tunnel", "port" => port)
     @handlers[id] = handler

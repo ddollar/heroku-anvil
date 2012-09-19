@@ -30,10 +30,14 @@ class Distributor::Server
 
       dequeue_json do |data|
         case command = data["command"]
+        when "socket" then
+          path = data["path"]
+          ch = socket(path)
+          ack data["id"], "ch" => ch, "path" => path
         when "tunnel" then
           port = (data["port"] || ENV["PORT"] || 5000).to_i
           ch = tunnel(port)
-          @multiplexer.output 0, Distributor::OkJson.encode({ "id" => data["id"], "command" => "ack", "ch" => ch, "port" => port })
+          ack data["id"], "ch" => ch, "port" => port
         when "close" then
           @multiplexer.close data["ch"]
         when "run" then
@@ -44,6 +48,10 @@ class Distributor::Server
         end
       end
     end
+  end
+
+  def ack(id, options={})
+    @multiplexer.output 0, Distributor::OkJson.encode(options.merge({ "id" => id, "command" => "ack" }))
   end
 
   def run(command)
@@ -70,13 +78,9 @@ class Distributor::Server
     ch
   end
 
-  def tunnel(port)
-    ch = @multiplexer.reserve
-
-    tcp = TCPSocket.new("localhost", port)
-
+  def handle_socket(ch, socket)
     # handle data incoming from process
-    @connector.handle(tcp) do |io|
+    @connector.handle(socket) do |io|
       begin
         @multiplexer.output(ch, io.readpartial(4096))
       rescue EOFError
@@ -88,10 +92,20 @@ class Distributor::Server
     # handle data incoming on the multiplexer
     @connector.handle(@multiplexer.reader(ch)) do |input_io|
       data = input_io.readpartial(4096)
-      tcp.write data
+      socket.write data
     end
 
     ch
+  end
+
+  def socket(path)
+    ch = @multiplexer.reserve
+    handle_socket ch, UNIXSocket.new(path)
+  end
+
+  def tunnel(port)
+    ch = @multiplexer.reserve
+    handle_socket ch, TCPSocket.new("localhost", port)
   end
 
   def command(command, data={})
