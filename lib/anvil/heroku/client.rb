@@ -1,12 +1,24 @@
+require 'json'
+
 class Heroku::Client
 
   # valid options:
   #
   # slug_url: url to a slug
   #
-  def release(app_name, description, options={})
-    release_options = { :description => description }.merge(options)
-    json_decode(releases_api["/apps/#{app_name}/release"].post(release_options))
+  def release(app_name, description, options={}, interval = 2)
+    release_options = json_encode({ "description" => description }.merge(Hash[options.map{|k,v| [k.to_s, v]}]))
+    headers = {:content_type => :json, :accept => :json}
+    response = RestClient.post "#{releases_host}/v1/apps/#{app_name}/release", release_options, headers
+
+    # poll until it's not a 202 Accepted http status
+    while response.code == 202
+      response = RestClient.get releases_host + response.headers[:location], options
+      sleep(interval)
+      yield
+    end
+
+    json_decode(response)
   end
 
   def routes(app_name)
@@ -33,7 +45,7 @@ class Heroku::Client
 private
 
   def releases_host
-    ENV["RELEASES_HOST"] || "https://releases-production.herokuapp.com"
+    ENV["RELEASES_HOST"] || "https://:#{Heroku::Auth.password}@cisaurus.heroku.com"
   end
 
   def releases_api

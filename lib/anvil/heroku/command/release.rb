@@ -27,7 +27,10 @@ class Heroku::Command::Release < Heroku::Command::Base
         end
       end
 
-      release = heroku.release(app, "Anvil deploy", release_options)
+      release = heroku.release(app, "Anvil deploy", release_options) {
+        print "."
+        $stdout.flush
+      }
       status release["release"]
     end
   end
