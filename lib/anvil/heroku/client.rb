@@ -1,5 +1,3 @@
-require 'json'
-
 class Heroku::Client
 
   # valid options:
