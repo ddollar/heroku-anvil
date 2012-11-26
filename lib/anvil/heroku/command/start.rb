@@ -39,7 +39,10 @@ class Heroku::Command::Start < Heroku::Command::Base
     slug_url = Anvil::Engine.build(dir, :buildpack => options[:buildpack])
 
     action("Preparing development dyno on #{app}") do
-      heroku.release(app, "Initial development dyno sync", :slug_url => development_dyno_slug_url)
+      heroku.release(app, "Initial development dyno sync", :slug_url => development_dyno_slug_url){
+        print "."
+        $stdout.flush
+      }
     end
 
     build_env = {
