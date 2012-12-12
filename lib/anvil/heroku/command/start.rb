@@ -25,13 +25,6 @@ class Heroku::Command::Start < Heroku::Command::Base
     app = options[:app] || error("Must specify a development app with -a")
     validate_arguments!
 
-    route = action("Creating endpoint") do
-      heroku.routes_create(app) if heroku.routes(app).length.zero?
-      route = heroku.routes(app).first
-      heroku.route_detach(app, route["url"], route["ps"]) unless route["ps"].empty?
-      route
-    end
-
     user = api.post_login("", Heroku::Auth.password).body["email"]
 
     Anvil.append_agent "interface=start user=#{user} app=#{app}"
@@ -56,12 +49,9 @@ class Heroku::Command::Start < Heroku::Command::Base
     end
 
     process = action("Starting development dyno") do
-      status route["url"].gsub("tcp", "http")
+      status "http://localhost:8000"
       run_attached app, "bin/development-dyno", develop_options
     end
-    @status=nil
-
-    heroku.route_attach(app, route["url"], process["process"])
 
     client_to_dyno = pipe
     dyno_to_client = pipe
@@ -69,13 +59,14 @@ class Heroku::Command::Start < Heroku::Command::Base
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
-      client.run("/app/vendor/bundle/ruby/1.9.1/bin/foreman start -c") do |ch|
+      client.run("/app/vendor/bundle/ruby/1.9.1/bin/foreman start -c -p 5000") do |ch|
         client.hookup ch, $stdin.dup, $stdout.dup
         client.on_close(ch) { shutdown(app, process["process"]) }
       end
 
       start_file_watcher   client, dir
       start_console_server client, dir
+      start_http_tunnel    client, 5000, 9000
     end
 
     client.on_command do |command, data|
@@ -262,6 +253,19 @@ private
           client.run("env TERM=xterm bash") do |ch|
             client.hookup ch, console_client
             client.on_close(ch) { console_client.close }
+          end
+        end
+      end
+    end
+  end
+
+  def start_http_tunnel(client, remote_port=5000, local_port=8000)
+    Thread.new do
+      http_tunnel = TCPServer.new(local_port)
+      loop do
+        Thread.start(http_tunnel.accept) do |tunnel_client|
+          client.tunnel(remote_port) do |ch|
+            client.hookup ch, tunnel_client
           end
         end
       end
