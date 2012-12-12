@@ -66,10 +66,6 @@ class Heroku::Command::Start < Heroku::Command::Base
     client_to_dyno = pipe
     dyno_to_client = pipe
 
-    FileUtils.mkdir_p "#{dir}/log"
-    @@development_log = File.open("#{dir}/log/heroku-development.log", "a+")
-    @@development_log.sync = true
-
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
@@ -85,7 +81,7 @@ class Heroku::Command::Start < Heroku::Command::Base
     client.on_command do |command, data|
       case command
       when /file.*/
-        #@@development_log.puts "Sync complete: #{data["name"]}"
+        # sync complete messages
       when "error"
         error data["message"]
       end
@@ -219,7 +215,6 @@ private
     manifest = Anvil::Manifest.new
     full_filename = File.join(dir, file)
     manifest.add full_filename
-    #@@development_log.puts "File changed: #{file}"
     manifest.upload manifest.missing
     hash = manifest.manifest[full_filename]["hash"]
     client.command "file.download", "name" => file, "hash" => hash
@@ -227,7 +222,6 @@ private
 
   def remove_file(dir, file, client)
     return if ignore_file?(File.join(dir, file))
-    #@@development_log.puts "File removed: #{file}"
     client.command "file.delete", "name" => file
   end
 
