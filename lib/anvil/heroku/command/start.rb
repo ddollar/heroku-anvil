@@ -59,7 +59,7 @@ class Heroku::Command::Start < Heroku::Command::Base
     client = Distributor::Client.new(dyno_to_client.first, client_to_dyno.last)
 
     client.on_hello do
-      client.run("/app/vendor/bundle/ruby/1.9.1/bin/foreman start -c -p 5000 -m all=1,rake=0,console=0") do |ch|
+      client.run("/app/vendor/bundle/ruby/1.9.1/bin/foreman start -c -p 5000") do |ch|
         client.hookup ch, $stdin.dup, $stdout.dup
         client.on_close(ch) { shutdown(app, process["process"]) }
       end
