@@ -38,7 +38,8 @@ class Anvil::Builder
       "buildpack" => options[:buildpack],
       "cache"     => options[:cache],
       "env"       => json_encode(options[:env] || {}),
-      "source"    => source
+      "source"    => source,
+      "type"      => options[:type]
     })
 
     slug_url = nil
