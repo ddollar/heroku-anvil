@@ -25,6 +25,7 @@ class Heroku::Command::Build < Heroku::Command::Base
   # -b, --buildpack URL  # use a custom buildpack
   # -p, --pipeline       # pipe compile output to stderr and only put the slug url on stdout
   # -r, --release [APP]  # release the slug to an app (defaults to current app detected from git)
+  # -t, --type TYPE      # build a slug of the given type (tgz, deb)
   #
   def index
     # let app name be specified with -r, and trigger app name warning
@@ -42,7 +43,8 @@ class Heroku::Command::Build < Heroku::Command::Base
 
     slug_url = Anvil::Engine.build source,
       :buildpack => options[:buildpack],
-      :pipeline  => options[:pipeline]
+      :pipeline  => options[:pipeline],
+      :type      => options[:type]
 
     if options.has_key?(:release)
       action("Releasing to #{app}") do
