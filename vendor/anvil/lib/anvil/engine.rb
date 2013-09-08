@@ -62,7 +62,7 @@ class Anvil::Engine
     elsif is_url?(buildpack)
       buildpack
     elsif buildpack =~ /\A\w+\/\w+\Z/
-      "http://codon-buildpacks.s3.amazonaws.com/buildpacks/#{buildpack}.tgz"
+      "https://s3-external-1.amazonaws.com/codon-buildpacks/buildpacks/#{buildpack}.tgz"
     elsif File.exists?(buildpack) && File.directory?(buildpack)
       manifest = Anvil::Manifest.new(buildpack)
       upload_missing manifest, "buildpack"

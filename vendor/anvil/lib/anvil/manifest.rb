@@ -25,7 +25,24 @@ class Anvil::Manifest
 
   def build(options={})
     uri  = URI.parse("#{anvil_host}/manifest/build")
-    http = Net::HTTP.new(uri.host, uri.port)
+
+    if uri.scheme == "https"
+      proxy = https_proxy
+    else
+      proxy = http_proxy
+    end
+
+    if proxy
+      proxy_uri = URI.parse(proxy)
+      http = Net::HTTP.new(uri.host, uri.port, proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
+    else
+      http = Net::HTTP.new(uri.host, uri.port)
+    end
+
+    if uri.scheme == "https"
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    end
 
     if uri.scheme == "https"
       http.use_ssl = true
@@ -202,6 +219,30 @@ private
       end
     end
     threads.each(&:join)
+  end
+
+  def http_proxy
+    proxy = ENV['HTTP_PROXY'] || ENV['http_proxy']
+    if proxy && !proxy.empty?
+      unless /^[^:]+:\/\// =~ proxy
+        proxy = "http://" + proxy
+      end
+      proxy
+    else
+      nil
+    end
+  end
+
+  def https_proxy
+    proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ENV["HTTP_PROXY"] || ENV["http_proxy"]
+    if proxy && !proxy.empty?
+      unless /^[^:]+:\/\// =~ proxy
+        proxy = "https://" + proxy
+      end
+      proxy
+    else
+      nil
+    end
   end
 
 end
