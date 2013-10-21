@@ -31,6 +31,11 @@ Alternate Heroku build process.
     
     # specify a buildpack from https://buildkits.heroku.com/
     $ heroku build https://github.com/ddollar/anvil.git -b heroku/nodejs
+
+#### Use a gist as a buildpack
+
+    # build mercurial
+    $ heroku build http://mercurial.selenic.com/release/mercurial-2.7.1.tar.gz -b https://gist.github.com/ddollar/07d579a6621b3ddd7b6b/raw/gistfile1.txt
     
 #### Use the pipelining feature to build complex deploy workflows
 
