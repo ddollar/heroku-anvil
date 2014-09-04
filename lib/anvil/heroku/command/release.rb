@@ -12,7 +12,7 @@ class Heroku::Command::Release < Heroku::Command::Base
     error("Usage: heroku release SLUG_URL") unless slug_url = shift_argument
     validate_arguments!
 
-    action("Releasing to #{app}.#{heroku.host}") do
+    action("Releasing to #{app}.herokuapp.com") do
       release_options = {
         :slug_url => slug_url,
         :cloud    => heroku.host
