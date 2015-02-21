@@ -1,3 +1,5 @@
+**[DEPRECATED: The Anvil build service has been turned off, so `heroku build` will no longer work](https://devcenter.heroku.com/changelog-items/613)**
+
 # heroku-anvil
 
 Alternate Heroku build process.
